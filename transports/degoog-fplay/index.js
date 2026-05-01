@@ -45,7 +45,7 @@ function _startServer(port, password) {
     port,
     fetch(req, server) {
       if (server.upgrade(req)) return;
-      return new Response("fplay transport", { status: 200 });
+      return new Response("4play transport", { status: 200 });
     },
     websocket: {
       open(ws) {
@@ -86,7 +86,7 @@ function _startServer(port, password) {
           clearTimeout(timer);
           _pending.delete(msg.id);
           if (msg.type === "session") resolve(msg.cookies ?? []);
-          else reject(new Error(msg.error ?? "fplay error"));
+          else reject(new Error(msg.error ?? "4play error"));
         }
       },
       close(ws) {
@@ -102,20 +102,20 @@ async function _getSession(host, warmupUrl) {
   if (existing && Date.now() - existing.ts < SESSION_TTL_MS)
     return existing.cookies;
 
-  if (!_browser) throw new Error("No browser connected to fplay transport.");
+  if (!_browser) throw new Error("No browser connected to 4play transport.");
 
   const id = randomUUID();
   const cookies = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       _pending.delete(id);
-      reject(new Error("fplay session timeout"));
+      reject(new Error("4play session timeout"));
     }, FETCH_TIMEOUT_MS);
     _pending.set(id, { resolve, reject, timer });
     _browser.send(JSON.stringify({ type: "get_session", id, url: warmupUrl }));
   });
 
   console.log(
-    `[fplay] got ${cookies.length} cookies for ${host}:`,
+    `[4play] got ${cookies.length} cookies for ${host}:`,
     cookies.map((c) => c.name).join(", "),
   );
   _sessions.set(host, { cookies, ts: Date.now() });
@@ -217,7 +217,7 @@ _startServer(3031, "");
 
 export default class FplayTransport {
   name = "degoog-fplay";
-  displayName = "degoog-fplay (Requires browser extension)";
+  displayName = "degoog-4play (Requires browser extension)";
   description =
     "Uses a real browser extension to harvest session cookies, then passes them to curl-impersonate for the actual requests.";
 
@@ -285,7 +285,7 @@ export default class FplayTransport {
     const binary = _resolveBinary();
     if (!binary)
       throw new Error(
-        "curl-impersonate not found. Required by fplay transport.",
+        "curl-impersonate not found. Required by 4play transport.",
       );
 
     const parsed = new URL(url);
