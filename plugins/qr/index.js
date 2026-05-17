@@ -1,5 +1,10 @@
+import { basename } from "node:path";
+
 const QR_API = "https://api.qrserver.com/v1/create-qr-code/";
 const SIZE = 256;
+
+let _folder = "qr";
+let _fetch = fetch;
 
 const _esc = (s) => {
   if (typeof s !== "string") return "";
@@ -18,8 +23,17 @@ const _extractUrl = (args) => {
   return t ? `https://${t}` : "";
 };
 
+const _validUrl = (url) => {
+  try {
+    const p = new URL(url);
+    return ["http:", "https:"].includes(p.protocol);
+  } catch {
+    return false;
+  }
+};
+
 export default {
-  isClientExposed: true,
+  isClientExposed: false,
   name: "QR Code",
   description: "Generate a QR code for a URL.",
   trigger: "qr",
@@ -27,6 +41,11 @@ export default {
   naturalLanguagePhrases: ["qr code for", "qrcode for", "generate qr for"],
 
   settingsSchema: [],
+
+  init(ctx) {
+    _folder = basename(ctx.dir);
+    _fetch = ctx.fetch ?? fetch;
+  },
 
   execute(args) {
     const raw = args.trim();
@@ -37,23 +56,39 @@ export default {
       };
     }
     const url = _extractUrl(raw);
-    let parsed;
-    try {
-      parsed = new URL(url);
-    } catch {
+    if (!_validUrl(url)) {
       return {
         title: "QR Code",
         html: `<div class="command-result"><p>Usage: <code>!qr &lt;url&gt;</code></p><p>Example: <code>!qr https://example.com</code></p></div>`,
       };
     }
-    if (!["http:", "https:"].includes(parsed.protocol)) {
-      return {
-        title: "QR Code",
-        html: `<div class="command-result"><p>URL must use HTTP or HTTPS.</p></div>`,
-      };
-    }
-    const imgUrl = `${QR_API}?size=${SIZE}x${SIZE}&data=${encodeURIComponent(url)}`;
-    const html = `<div class="command-result qr-result"><p class="qr-label">${_esc(url)}</p><img src="${_esc(imgUrl)}" alt="QR code" class="qr-image" width="${SIZE}" height="${SIZE}"></div>`;
-    return { title: "QR Code", html };
+    const imgUrl = `/api/plugin/${_folder}/qr?url=${encodeURIComponent(url)}`;
+    return {
+      title: "QR Code",
+      html: `<div class="command-result qr-result"><p class="qr-label">${_esc(url)}</p><img src="${_esc(imgUrl)}" alt="QR code" class="qr-image" width="${SIZE}" height="${SIZE}"></div>`,
+    };
   },
 };
+
+export const routes = [
+  {
+    method: "get",
+    path: "/qr",
+    handler: async (req) => {
+      const urlParam = new URL(req.url).searchParams.get("url") ?? "";
+      if (!_validUrl(urlParam)) {
+        return new Response("Invalid URL", { status: 400 });
+      }
+      const apiUrl = `${QR_API}?size=${SIZE}x${SIZE}&data=${encodeURIComponent(urlParam)}`;
+      const res = await _fetch(apiUrl);
+      if (!res.ok) return new Response("QR fetch failed", { status: 502 });
+      return new Response(res.body, {
+        status: 200,
+        headers: {
+          "Content-Type": res.headers.get("Content-Type") ?? "image/png",
+          "Cache-Control": "public, max-age=3600",
+        },
+      });
+    },
+  },
+];

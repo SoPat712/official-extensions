@@ -19,7 +19,7 @@ const BASE_STRIP_HEADERS = new Set(["accept-encoding", "accept"]);
 
 try {
   mkdirSync(COOKIE_JAR_DIR, { recursive: true });
-} catch {}
+} catch { }
 
 let _server = null;
 let _browser = null;

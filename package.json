@@ -29,7 +29,7 @@
       "path": "plugins/qr",
       "name": "QR Code",
       "description": "Generate a QR code for a URL.",
-      "version": "1.1.2",
+      "version": "1.2.0",
       "type": "command"
     },
     {
