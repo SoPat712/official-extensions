@@ -135,7 +135,7 @@
       "path": "plugins/highlight-terms",
       "name": "Highlight Terms",
       "description": "Wraps query-matching words in <strong> on result titles and snippets on every search page.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "type": "command"
     },
     {

@@ -68,7 +68,10 @@ const init = () => {
   const resultsList = document.getElementById("results-list");
   if (!resultsList) return;
 
-  const observer = new MutationObserver(() => highlightAll(pattern));
+  const observer = new MutationObserver(() => {
+    const freshPattern = buildPattern(getWords());
+    if (freshPattern) highlightAll(freshPattern);
+  });
   observer.observe(resultsList, { childList: true, subtree: true });
 };
 
