@@ -9,8 +9,6 @@ const USER_AGENTS = [
 const BASE_URL = "https://www.startpage.com";
 const SERP_MARKER = "React.createElement(UIStartpage.AppSerpWeb, {";
 
-export const outgoingHosts = ["www.startpage.com", "startpage.com"];
-
 const _getRandomUserAgent = () => USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 
 const _extractSerpJson = (html) => {

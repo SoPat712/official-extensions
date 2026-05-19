@@ -1,4 +1,3 @@
-export const outgoingHosts = ["api.openverse.org"];
 export const type = "images";
 
 const API_URL = "https://api.openverse.org/v1/images/";

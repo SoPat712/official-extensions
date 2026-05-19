@@ -1,4 +1,3 @@
-export const outgoingHosts = ["duckduckgo.com"];
 export const type = "news";
 
 const USER_AGENTS = [

@@ -1,4 +1,3 @@
-export const outgoingHosts = ["content.guardianapis.com"];
 export const type = "news";
 
 const API_URL = "https://content.guardianapis.com/search";

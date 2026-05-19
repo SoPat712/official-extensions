@@ -1,4 +1,3 @@
-export const outgoingHosts = ["commons.wikimedia.org"];
 export const type = "images";
 
 const API_URL = "https://commons.wikimedia.org/w/api.php";

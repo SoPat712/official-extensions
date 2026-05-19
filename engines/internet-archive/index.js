@@ -1,4 +1,3 @@
-export const outgoingHosts = ["archive.org", "www.archive.org"];
 export const type = "file";
 
 const _formatBytes = (bytes) => {

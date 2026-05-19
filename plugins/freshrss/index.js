@@ -77,9 +77,8 @@ const _faviconUrl = (url) => {
 };
 
 const _proxyImg = (url) => {
-  if (!url) return "";
-  if (_signProxyUrl) return _signProxyUrl(url);
-  return `/api/proxy/image?url=${encodeURIComponent(url)}`;
+  if (!url || !_signProxyUrl) return "";
+  return _signProxyUrl(url);
 };
 
 const _thumbnail = (item) => {

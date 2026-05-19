@@ -1,5 +1,3 @@
-export const outgoingHosts = ["*"];
-
 const DEFAULT_INSTANCE = "https://lemmy.world";
 const SEARCH_LIMIT = 20;
 

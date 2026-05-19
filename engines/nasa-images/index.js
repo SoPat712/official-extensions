@@ -1,4 +1,3 @@
-export const outgoingHosts = ["images-api.nasa.gov", "images-assets.nasa.gov"];
 export const type = "images";
 
 const API_URL = "https://images-api.nasa.gov/search";

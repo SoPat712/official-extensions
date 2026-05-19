@@ -1,5 +1,3 @@
-export const outgoingHosts = ["api.search.brave.com"];
-
 const API_URL = "https://api.search.brave.com/res/v1/web/search";
 
 export default class BraveApiSearchEngine {

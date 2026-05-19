@@ -1,7 +1,5 @@
 import * as cheerio from "cheerio";
 
-export const outgoingHosts = ["www.ecosia.org", "ecosia.org"];
-
 const CLOUDFLARE_CHALLENGE_MARKER = "Just a moment";
 const USER_AGENTS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",

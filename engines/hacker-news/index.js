@@ -1,4 +1,3 @@
-export const outgoingHosts = ["hn.algolia.com"];
 export const type = "news";
 
 const API_BASE = "https://hn.algolia.com/api/v1";

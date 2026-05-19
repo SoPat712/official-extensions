@@ -18,11 +18,6 @@
     return el.innerHTML;
   };
 
-  const proxyImageUrl = (url) => {
-    if (!url) return "";
-    if (url.startsWith("/api/proxy/")) return url;
-    return "/api/proxy/image?url=" + encodeURIComponent(url);
-  };
 
   function cleanHostname(url) {
     try {
@@ -69,7 +64,7 @@
   const renderCard = (item) => {
     var image = item.thumbnail
       ? '<img class="home-feed-card-img" src="' +
-        escapeHtml(proxyImageUrl(item.thumbnail)) +
+        escapeHtml(item.thumbnail || "") +
         '" alt="" loading="lazy" onerror="this.parentElement.querySelector(\'.home-feed-card-img\')?.remove()">'
       : '<div class="home-feed-card-favicon-wrap"><img class="home-feed-card-favicon" src="' +
         escapeHtml(faviconUrl(item.url)) +
