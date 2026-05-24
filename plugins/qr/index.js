@@ -1,7 +1,7 @@
 const QR_API = "https://api.qrserver.com/v1/create-qr-code/";
 const SIZE = 256;
 
-let _apiBase = "/api/plugin/qr";
+let _apiBase = "";
 let _fetch = fetch;
 
 const _esc = (s) => {

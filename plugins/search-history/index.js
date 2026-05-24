@@ -9,7 +9,7 @@ const TRASH_ICON =
 const HISTORY_PATH = join(process.cwd(), "data", "history.json");
 const PER_PAGE = 20;
 let maxEntries = 1000;
-let apiBase = "/api/plugin/search-history";
+let apiBase = "";
 
 const _getDataDir = () => {
   return join(process.cwd(), "data");

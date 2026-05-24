@@ -7,7 +7,7 @@ const _skipOnce = new Set();
 
 let _cache = null;
 let _lang = "en";
-let _apiBase = "/api/plugin/spell-check";
+let _apiBase = "";
 let _tpl = "";
 
 const BANG = /^!/;
