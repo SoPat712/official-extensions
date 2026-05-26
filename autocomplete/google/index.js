@@ -1,6 +1,6 @@
 export default class GoogleAutocompleteProvider {
   isClientExposed = false;
-  name = "Google";
+  name = "Google Autocomplete";
   description = "Autocomplete suggestions from Google.";
 
   settingsSchema = [
@@ -36,7 +36,9 @@ export default class GoogleAutocompleteProvider {
         const data = JSON.parse(text);
         const items = data[0] || [];
         return items.map((item) => {
-          const raw = (item[0] || "").replace(/<\/?b>/gi, "").replace(/&#39;/g, "'");
+          const raw = (item[0] || "")
+            .replace(/<\/?b>/gi, "")
+            .replace(/&#39;/g, "'");
           const meta = item[3];
           if (!meta) return raw;
           const rich = {};
@@ -49,7 +51,7 @@ export default class GoogleAutocompleteProvider {
       const res = await doFetch(url);
       const buf = await res.arrayBuffer();
       const text = new TextDecoder("iso-8859-1").decode(buf);
-      return (JSON.parse(text))[1] ?? [];
+      return JSON.parse(text)[1] ?? [];
     } catch {
       return [];
     }

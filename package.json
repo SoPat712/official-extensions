@@ -405,9 +405,9 @@
   "autocomplete": [
     {
       "path": "autocomplete/google",
-      "name": "Google",
+      "name": "Google Autocomplete",
       "description": "Autocomplete suggestions from Google.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "legacyIds": [
         "autocomplete-builtin-google",
         "google"
@@ -415,9 +415,9 @@
     },
     {
       "path": "autocomplete/duckduckgo",
-      "name": "DuckDuckGo",
+      "name": "DuckDuckGo Autocomplete",
       "description": "Autocomplete suggestions from DuckDuckGo.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "legacyIds": [
         "autocomplete-builtin-duckduckgo",
         "duckduckgo"
@@ -425,21 +425,21 @@
     },
     {
       "path": "autocomplete/brave",
-      "name": "Brave",
+      "name": "Brave Autocomplete",
       "description": "Autocomplete suggestions from Brave Search. Works without an API key; optionally add your Brave Search API key for authenticated requests.",
-      "version": "1.0.1"
+      "version": "1.1.0"
     },
     {
       "path": "autocomplete/bing",
-      "name": "Bing",
+      "name": "Bing Autocomplete",
       "description": "Autocomplete suggestions from Bing.",
-      "version": "1.0.1"
+      "version": "1.1.0"
     },
     {
       "path": "autocomplete/yahoo",
-      "name": "Yahoo",
+      "name": "Yahoo Autocomplete",
       "description": "Autocomplete suggestions from Yahoo Search.",
-      "version": "1.0.1"
+      "version": "1.1.0"
     }
   ]
 }

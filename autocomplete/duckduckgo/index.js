@@ -1,6 +1,6 @@
 export default class DuckDuckGoAutocompleteProvider {
   isClientExposed = false;
-  name = "DuckDuckGo";
+  name = "DuckDuckGo Autocomplete";
   description = "Autocomplete suggestions from DuckDuckGo.";
 
   settingsSchema = [
@@ -29,7 +29,9 @@ export default class DuckDuckGoAutocompleteProvider {
     const [suggestRes, richRes] = await Promise.allSettled([
       doFetch(`https://duckduckgo.com/ac/?q=${encoded}&type=list`),
       this.richEnabled
-        ? doFetch(`https://api.duckduckgo.com/?q=${encoded}&format=json&no_redirect=1&no_html=1&skip_disambig=1`)
+        ? doFetch(
+            `https://api.duckduckgo.com/?q=${encoded}&format=json&no_redirect=1&no_html=1&skip_disambig=1`,
+          )
         : Promise.resolve(null),
     ]);
 
@@ -38,27 +40,41 @@ export default class DuckDuckGoAutocompleteProvider {
       try {
         const data = await suggestRes.value.json();
         suggestions = Array.isArray(data) ? (data[1] ?? []) : [];
-      } catch { suggestions = []; }
+      } catch {
+        suggestions = [];
+      }
     }
 
     let rich = null;
-    if (this.richEnabled && richRes.status === "fulfilled" && richRes.value !== null) {
+    if (
+      this.richEnabled &&
+      richRes.status === "fulfilled" &&
+      richRes.value !== null
+    ) {
       try {
         const ia = await richRes.value.json();
         if (ia.Heading && ia.AbstractText) {
           const richData = {};
           if (ia.AbstractText) richData.description = ia.AbstractText;
-          if (ia.Image) richData.thumbnail = `https://duckduckgo.com${ia.Image}`;
+          if (ia.Image)
+            richData.thumbnail = `https://duckduckgo.com${ia.Image}`;
           if (ia.Entity) richData.type = ia.Entity;
           rich = { text: ia.Heading, rich: richData };
         }
-      } catch { rich = null; }
+      } catch {
+        rich = null;
+      }
     }
 
     const results = [];
     if (rich) results.push(rich);
     for (const s of suggestions) {
-      if (rich && typeof s === "string" && s.toLowerCase() === rich.text.toLowerCase()) continue;
+      if (
+        rich &&
+        typeof s === "string" &&
+        s.toLowerCase() === rich.text.toLowerCase()
+      )
+        continue;
       results.push(s);
     }
     return results;
