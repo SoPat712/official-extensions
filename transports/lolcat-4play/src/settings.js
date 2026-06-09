@@ -7,6 +7,10 @@ export const MAX_CONTAINER_POOL_SIZE = 5;
 export const DEFAULT_POOL_SIZE = 5;
 export const MIN_POOL_SIZE = 1;
 export const DEFAULT_CONTAINER_TTL_H = 24;
+export const DEFAULT_WARMUP_TTL_M = 60;
+export const DEFAULT_BLOCK_COOLDOWN_M = 20;
+export const DEFAULT_WARMUP_SETTLE_MS = 1500;
+export const DEFAULT_WARMUP_QUERY = "weather";
 
 export const clampTimeout = (value) =>
   Math.max(MIN_TIMEOUT_MS, Math.min(MAX_TIMEOUT_MS, Number(value) || DEFAULT_TIMEOUT_MS));
@@ -18,6 +22,14 @@ export const toContainerTtlMs = (value) => {
   const h = parseFloat(value);
   return !isNaN(h) && h > 0 ? h * 60 * 60 * 1000 : DEFAULT_CONTAINER_TTL_H * 60 * 60 * 1000;
 };
+
+export const toMinutesMs = (value, fallbackMinutes) => {
+  const minutes = parseFloat(value);
+  return !isNaN(minutes) && minutes > 0 ? minutes * 60 * 1000 : fallbackMinutes * 60 * 1000;
+};
+
+export const clampSettleMs = (value) =>
+  Math.max(0, Math.min(10000, Number(value) || DEFAULT_WARMUP_SETTLE_MS));
 
 export const normaliseSettings = (settings = {}) => ({
   timeoutMs: clampTimeout(settings.timeout),
@@ -31,6 +43,10 @@ export const normaliseSettings = (settings = {}) => ({
   proxyPassword: (settings.proxyPassword || "").trim(),
   proxyDns: settings.proxyDns !== "false",
   password: typeof settings.password === "string" ? settings.password : "",
+  warmupQuery: String(settings.warmupQuery || DEFAULT_WARMUP_QUERY).trim() || DEFAULT_WARMUP_QUERY,
+  warmupTtlMs: toMinutesMs(settings.warmupTtl, DEFAULT_WARMUP_TTL_M),
+  blockCooldownMs: toMinutesMs(settings.blockCooldown, DEFAULT_BLOCK_COOLDOWN_M),
+  warmupSettleMs: clampSettleMs(settings.warmupSettle),
 });
 
 export const containerConfigKey = (settings) =>
@@ -86,6 +102,38 @@ export const settingsSchemaFor = (transportName) => [
     type: "number",
     placeholder: String(DEFAULT_CONTAINER_TTL_H),
     description: "How long a container lives before being recycled (in hours). Longer is better for avoiding detection. Default is 24 hours.",
+  },
+  {
+    key: "warmupQuery",
+    label: "Origin warmup search query",
+    type: "text",
+    placeholder: DEFAULT_WARMUP_QUERY,
+    description:
+      "Automatic per-origin browser warmup tries this harmless query through a discovered homepage search box before the real request. No engine changes or Google-specific rules are required.",
+  },
+  {
+    key: "warmupTtl",
+    label: "Origin warmup TTL (minutes)",
+    type: "number",
+    placeholder: String(DEFAULT_WARMUP_TTL_M),
+    description:
+      "How long a browser/container session is considered warmed for the same origin before refreshing it.",
+  },
+  {
+    key: "blockCooldown",
+    label: "Blocked session cooldown (minutes)",
+    type: "number",
+    placeholder: String(DEFAULT_BLOCK_COOLDOWN_M),
+    description:
+      "When a CAPTCHA or bot-check page is detected, this origin/session is tainted for this long instead of returning fake zero results.",
+  },
+  {
+    key: "warmupSettle",
+    label: "Warmup settle delay (ms)",
+    type: "number",
+    placeholder: String(DEFAULT_WARMUP_SETTLE_MS),
+    description:
+      "Short pause after homepage/form warmup navigation so browser-set cookies and session scripts can settle before the real request.",
   },
   {
     key: "proxyType",

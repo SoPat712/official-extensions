@@ -11,7 +11,8 @@ Routes searches through a real Firefox session using the official [4play](https:
 ## How it works
 
 1. The official 4play Firefox extension connects to degoog's WebSocket endpoint on the main port.
-2. For each engine request, degoog opens a tab in the connected Firefox, receives the 4play web response, wraps it for the engine, and closes the tab.
+2. On first request per origin/container, degoog warms that origin in Firefox, tries a generic homepage search-box warmup, and captures the browser's real request headers/cookies.
+3. Subsequent engine requests reuse the warmed browser session headers with curl/curl-impersonate when available, avoiding a visible result tab for every search. If curl is unavailable or no browser headers were captured, it falls back to the tab-backed 4play response path.
 
 ## Requirements
 
@@ -59,13 +60,13 @@ Then, in Settings -> Engines -> Configure -> Advanced, pick `lolcat-4play` as th
 ## Behaviour and limits
 
 - **Firefox only** - use degoog-fplay for Chrome/Edge/Brave support.
-- **One browser connection** - a single Firefox instance connects. Parallel engine queries each open their own tab concurrently.
+- **One browser connection** - a single Firefox instance connects. Parallel origin warmups may open tabs concurrently.
 - **Warm containers** - isolated containers are reused up to the configured pool size and recycled when settings change or their TTL expires.
-- **Tabs are visible** - tabs flicker in the connected Firefox window as requests come in.
+- **Tabs are visible during warmup/fallback** - normal searches use warmed browser headers with curl when available; tabs only flicker for initial warmup, session refresh, block retry, or fallback.
 - **Session state is native** - cookies persist across tabs within the same profile. Container isolation keeps parallel requests separated.
 - **Clean profile recommended** - dedicated Firefox profile, no personal data, no interfering extensions.
 
 ## Privacy and trust
 
-- The Firefox instance contacts external sites directly for every search request.
+- The Firefox instance contacts external sites during origin warmup and fallback tab fetches. Normal warmed curl searches contact external sites from the Degoog host, using the configured transport proxy when one is set.
 - The WebSocket between degoog and the extension is unencrypted (`ws://`). On a LAN, set a password and treat the port accordingly.

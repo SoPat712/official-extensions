@@ -44,6 +44,10 @@ export class ContainerPool {
     this.rejectWaiters("lolcat-4play: container settings changed while waiting");
   }
 
+  retireContainer(id) {
+    if (id) this.retired.add(id);
+  }
+
   async banishContainer(id) {
     if (!id || !this.hasSession()) return;
     this.retired.delete(id);
