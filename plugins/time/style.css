@@ -1,16 +1,30 @@
+.time-result {
+  color: var(--text-primary);
+}
+
 .time-result .time-place {
-  font-size: 1.25rem;
-  margin: 0 0 0.25rem 0;
-}
-
-.time-time {
-  font-size: 1.75rem;
-  font-weight: 600;
-  margin: 0.25rem 0;
-}
-
-.time-date {
+  margin: 0 0 0.25rem;
   color: var(--text-secondary);
   font-size: 0.95rem;
-  margin: 0;
+  font-weight: 500;
+}
+
+.time-result .time-time {
+  margin: 0.25rem 0;
+  color: var(--text-primary);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.time-result .time-date,
+.time-result .time-zone {
+  margin: 0.2rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.time-result .time-zone {
+  font-size: 0.85rem;
 }

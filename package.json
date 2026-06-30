@@ -32,8 +32,8 @@
     {
       "path": "plugins/time",
       "name": "Time",
-      "description": "Show current time in a timezone or city.",
-      "version": "1.1.2",
+      "description": "Show current time for cities, countries, and timezones.",
+      "version": "1.2.0",
       "type": "command"
     },
     {

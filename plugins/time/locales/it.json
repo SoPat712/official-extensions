@@ -1,6 +1,6 @@
 {
   "plugin-time": {
     "name": "Ora",
-    "description": "Mostra l'ora corrente in un fuso orario o in una città."
+    "description": "Mostra l'ora corrente per città, paesi e fusi orari."
   }
 }
