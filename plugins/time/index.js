@@ -215,7 +215,7 @@ export default {
 
     return {
       title: `Time: ${resolved.label}`,
-      html: `<div class="command-result time-result"><h3 class="time-place">Time in ${_esc(resolved.label)}</h3><p class="time-time">${_esc(timeStr)}</p><p class="time-date">${_esc(detail)}</p><p class="time-zone">${_esc(resolved.timeZone)}</p></div>`,
+      html: `<div class="command-result time-result" data-plugin-time-card data-timezone="${_esc(resolved.timeZone)}" data-locale="${_esc(locale)}"><h3 class="time-place">Time in ${_esc(resolved.label)}</h3><p class="time-time" data-plugin-time-clock>${_esc(timeStr)}</p><p class="time-date" data-plugin-time-date>${_esc(detail)}</p><p class="time-zone">${_esc(resolved.timeZone)}</p></div>`,
     };
   },
 };
