@@ -58,7 +58,7 @@ export default class DuckDuckGoNewsEngine {
     const doFetch = context?.fetch ?? fetch;
     const ua = context?.userAgent?.() ?? FALLBACK_UA;
     const acceptLang = context?.buildAcceptLanguage?.() ?? "en-US,en;q=0.9";
-    const safeMap = { off: "-1", moderate: "-1", strict: "1" };
+    const safeMap = { off: "-2", moderate: "-1", strict: "1" };
     const safe = safeMap[this.safeSearch] ?? "-1";
     const headers = {
       "User-Agent": ua,

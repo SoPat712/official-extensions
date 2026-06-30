@@ -73,7 +73,7 @@ export default class EcosiaEngine {
       if (title && href && href.startsWith("http")) {
         try {
           const parsed = new URL(href);
-          if (parsed.hostname.endsWith("ecosia.org")) return;
+          if (parsed.hostname === "ecosia.org" || parsed.hostname.endsWith(".ecosia.org")) return;
         } catch {
           //
         }

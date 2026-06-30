@@ -126,7 +126,9 @@ export default class DuckDuckGoImagesEngine {
   }
 
   _region(context) {
-    return context?.lang ? `${context.lang}-${context.lang}` : "us-en";
+    const lang = context?.lang;
+    if (!lang || lang === "en") return "us-en";
+    return `${lang}-${lang}`;
   }
 
   _headers(context, safe, region) {

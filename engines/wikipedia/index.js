@@ -5,10 +5,18 @@ const WIKI_HEADERS = {
 
 const LANG_RE = /^[a-z]{2,3}$/;
 
-const _wikiHost = (lang) => {
-  if (lang && LANG_RE.test(lang)) return `${lang}.wikipedia.org`;
-  return "en.wikipedia.org";
+const SPECIAL_WIKIS = new Set(["simple"]);
+
+const _normalizeLang = (lang) => {
+  if (!lang) return "en";
+  const lower = lang.toLowerCase();
+  if (SPECIAL_WIKIS.has(lower)) return lower;
+  const primary = lower.split("-")[0];
+  if (LANG_RE.test(primary)) return primary;
+  return "en";
 };
+
+const _wikiHost = (lang) => `${_normalizeLang(lang)}.wikipedia.org`;
 
 export default class WikipediaEngine {
   isClientExposed = false;
