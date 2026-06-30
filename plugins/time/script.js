@@ -1,61 +1,55 @@
 (function () {
-  function formatClock(date, timeZone, locale) {
-    return date.toLocaleTimeString(locale || undefined, {
-      timeZone,
-      hour: "2-digit",
+  function formatClock(date, timezone, hour12Mode) {
+    const opts = {
+      timeZone: timezone,
+      hour: "numeric",
       minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
+    };
+    if (hour12Mode === "true") opts.hour12 = true;
+    else if (hour12Mode === "false") opts.hour12 = false;
+    return date.toLocaleTimeString(undefined, opts);
   }
 
-  function formatOffset(date, timeZone) {
-    try {
-      const parts = new Intl.DateTimeFormat("en", {
-        timeZone,
-        timeZoneName: "shortOffset",
-      }).formatToParts(date);
-      return parts.find((part) => part.type === "timeZoneName")?.value || "";
-    } catch {
-      return "";
-    }
-  }
-
-  function formatDate(date, timeZone, locale) {
-    const dateStr = date.toLocaleDateString(locale || undefined, {
-      timeZone,
+  function formatDateLine(date, timezone) {
+    const dateStr = date.toLocaleDateString(undefined, {
+      timeZone: timezone,
       weekday: "long",
-      day: "numeric",
       month: "long",
+      day: "numeric",
       year: "numeric",
     });
-    const offset = formatOffset(date, timeZone);
+    let offset = "";
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        timeZoneName: "shortOffset",
+      }).formatToParts(date);
+      offset = parts.find((part) => part.type === "timeZoneName")?.value || "";
+    } catch {}
     return offset ? `${dateStr} (${offset})` : dateStr;
   }
 
   function tick(card) {
-    const timeZone = card.dataset.timezone;
-    if (!timeZone) return;
-
-    const locale = card.dataset.locale || undefined;
+    const timezone = card.dataset.timezone;
+    if (!timezone) return;
+    const hour12Mode = card.dataset.hour12 || "auto";
     const now = new Date();
-    const clock = card.querySelector("[data-plugin-time-clock]");
-    const date = card.querySelector("[data-plugin-time-date]");
-
-    if (clock) clock.textContent = formatClock(now, timeZone, locale);
-    if (date) date.textContent = formatDate(now, timeZone, locale);
+    const clock = card.querySelector("[data-time-clock]");
+    const date = card.querySelector("[data-time-date]");
+    if (clock) clock.textContent = formatClock(now, timezone, hour12Mode);
+    if (date) date.textContent = formatDateLine(now, timezone);
   }
 
   function initCard(card) {
     tick(card);
-    if (card.dataset.pluginTimeInterval) return;
-
-    const interval = window.setInterval(() => tick(card), 1000);
-    card.dataset.pluginTimeInterval = String(interval);
+    if (card.dataset.timeLive !== "true") return;
+    if (card.dataset.timeIntervalId) return;
+    const intervalId = window.setInterval(() => tick(card), 1000);
+    card.dataset.timeIntervalId = String(intervalId);
   }
 
   function init() {
-    document.querySelectorAll("[data-plugin-time-card]").forEach(initCard);
+    document.querySelectorAll("[data-time-card]").forEach(initCard);
   }
 
   if (document.readyState === "loading") {
