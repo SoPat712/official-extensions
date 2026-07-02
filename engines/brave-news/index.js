@@ -54,7 +54,7 @@ export default class BraveNewsEngine {
     const $ = cheerio.load(html);
     const results = [];
 
-    $("a[target='_self'][href^='http']").each((_, el) => {
+    $("div.snippet[data-type='news'], div[data-type='news']").each((_, el) => {
       const $el = $(el);
       const href = $el.attr("href") ?? "";
       if (!href) return;
