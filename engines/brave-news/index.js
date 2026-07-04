@@ -34,8 +34,8 @@ export default class BraveNewsEngine {
     }
     const lang = context?.lang;
     const cookie = lang && lang !== "en"
-      ? `safesearch=${this.safeSearch}; useLocation=0; country=${lang}; ui_lang=${lang}-${lang}`
-      : `safesearch=${this.safeSearch}; useLocation=0; country=us; ui_lang=en-us`;
+        ? `safesearch=${this.safeSearch}; useLocation=0; country=${lang}; ui_lang=${lang}-${lang}`
+        : `safesearch=${this.safeSearch}; useLocation=0; country=us; ui_lang=en-us`;
     const url = `https://search.brave.com/news?${new URLSearchParams(params)}`;
     const doFetch = context?.fetch ?? fetch;
     const res = await doFetch(url, {
@@ -58,14 +58,9 @@ export default class BraveNewsEngine {
       const $el = $(el);
       const linkEl = $el.find("a[href^='http']").first();
       const href = linkEl.attr("href") ?? "";
-      if (!href) return;
-      try {
-        const parsed = new URL(href, "https://search.brave.com");
-        if (parsed.hostname === "search.brave.com") return;
-      } catch { return; }
-      const title = $el.find("span.snippet-title, .snippet-title, div[class*='snippet-title']").text().trim()
-        || linkEl.text().trim();
-      const snippet = $el.find(".snippet-description, .snippet-content, div[class*='snippet-description']").text().trim();
+      const title = $el.find("div.title").text().trim() || $el.text().trim();
+      const snippet = $el.find("div.description").text().trim() || "";
+      const source = $el.find(".site-name-content > span:first-child").text().trim() || "";
       const thumbnail = context?.extractImageUrl?.($el, "https://search.brave.com", [
         ".snippet-thumbnail-wrapper .thumbnail img",
         ".result-thumbnail-wrapper .thumbnail img",
@@ -74,7 +69,7 @@ export default class BraveNewsEngine {
       ]) ?? "";
       if (title) {
         results.push({
-          title, url: href, snippet, source: this.name,
+          title, url: href, snippet, source: source ?? this.name,
           ...(thumbnail ? { thumbnail } : {}),
         });
       }
