@@ -101,12 +101,15 @@ export const interceptor = {
       return { query };
     }
 
+    const existing = _pending.get(q);
+    if (existing) return await existing;
+
     const promise = _runIntercept(q, context);
     _pending.set(q, promise);
     try {
       return await promise;
     } finally {
-      _pending.delete(q);
+      if (_pending.get(q) === promise) _pending.delete(q);
     }
   },
 };
