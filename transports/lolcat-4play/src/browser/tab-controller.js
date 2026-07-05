@@ -114,19 +114,14 @@ export class TabController {
 
   async acceptConsent(tabId) {
     const consentTimeout = () => Math.min(CONSENT_NAVIGATION_TIMEOUT_MS, this._timeoutMs());
-    for (let i = 0; i < 3; i++) {
-      const navigated = this.awaitReady(tabId, consentTimeout());
-      const result = await this.inject(tabId, consentClickJs(), consentTimeout());
-      if (!result) return false;
-      if (!result.consent) return true;
-      if (!result.progressed) return false;
-      this._warn(
-        `accepted consent on tab ${tabId} (${result.label || result.via || "unknown"})`,
-      );
-      await navigated;
-      await sleep(this._settleMs());
-    }
     const result = await this.inject(tabId, consentClickJs(), consentTimeout());
-    return !result?.consent;
+    if (!result) return false;
+    if (!result.consent) return true;
+    if (!result.progressed) return false;
+    this._warn(
+      `accepted consent on tab ${tabId} (${result.label || result.via || "unknown"})`,
+    );
+    await sleep(this._settleMs());
+    return true;
   }
 }
