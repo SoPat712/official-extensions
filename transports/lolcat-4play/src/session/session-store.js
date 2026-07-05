@@ -202,7 +202,7 @@ export class SessionStore {
       blocked,
       cooldownLeftMs: blocked ? warm.blockedUntil - now : 0,
       reason: blocked ? warm.reason || "blocked" : null,
-      alive: !blocked && ageMs !== null && ageMs < ttlMs,
+      alive: Boolean(session?.headers?.length) && !blocked && ageMs !== null && ageMs < ttlMs,
     };
   }
 

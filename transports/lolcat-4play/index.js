@@ -95,6 +95,7 @@ export default class FourPlayTransport {
     cmd: (action, params, timeoutMs) => this._cmd(action, params, timeoutMs),
     inject: (tabId, js, timeoutMs) => this._tabs.inject(tabId, js, timeoutMs),
     awaitDom: (tabId, timeoutMs) => this._tabs.awaitDom(tabId, timeoutMs),
+    awaitReady: (tabId, timeoutMs) => this._tabs.awaitReady(tabId, timeoutMs),
     closeTabQuietly: (tabId) => this._tabs.closeTabQuietly(tabId),
     store: this._store,
     ownedTabIds: this._tabs.ownedTabIds,

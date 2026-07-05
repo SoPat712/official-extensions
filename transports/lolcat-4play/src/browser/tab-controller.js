@@ -1,5 +1,9 @@
 import { consentClickJs, sleep } from "../warmup/origin-warmup.js";
 
+const READY_POLL_MS = 400;
+const READY_POLL_GRACE_MS = 1200;
+const CONSENT_NAVIGATION_TIMEOUT_MS = 1500;
+
 export class TabController {
   constructor({ command, dom, timeoutMs, settleMs, warn }) {
     this._command = command;
@@ -76,6 +80,27 @@ export class TabController {
     return this._dom.wait(tabId, Math.min(timeoutMs, this._timeoutMs()));
   }
 
+  armDom(tabId, timeoutMs = this._timeoutMs()) {
+    return this._dom.wait(tabId, Math.min(timeoutMs, this._timeoutMs())).catch(() => null);
+  }
+
+  async awaitReady(tabId, timeoutMs = this._timeoutMs()) {
+    if (typeof tabId !== "number") return null;
+    const cap = Math.min(timeoutMs, this._timeoutMs());
+    return Promise.race([this.armDom(tabId, cap), this._pollReady(tabId, cap)]);
+  }
+
+  async _pollReady(tabId, cap) {
+    const deadline = Date.now() + cap;
+    await sleep(Math.min(READY_POLL_GRACE_MS, Math.max(0, cap / 4)));
+    while (Date.now() < deadline) {
+      const state = await this.inject(tabId, "document.readyState").catch(() => null);
+      if (state === "complete") return { id: tabId, via: "poll" };
+      await sleep(READY_POLL_MS);
+    }
+    return null;
+  }
+
   async inject(tabId, js, timeoutMs = this._timeoutMs()) {
     const result = await this._command(
       "tab_inject_js",
@@ -88,8 +113,9 @@ export class TabController {
   }
 
   async acceptConsent(tabId) {
-    const consentTimeout = () => Math.min(10000, this._timeoutMs());
+    const consentTimeout = () => Math.min(CONSENT_NAVIGATION_TIMEOUT_MS, this._timeoutMs());
     for (let i = 0; i < 3; i++) {
+      const navigated = this.awaitReady(tabId, consentTimeout());
       const result = await this.inject(tabId, consentClickJs(), consentTimeout());
       if (!result) return false;
       if (!result.consent) return true;
@@ -97,7 +123,7 @@ export class TabController {
       this._warn(
         `accepted consent on tab ${tabId} (${result.label || result.via || "unknown"})`,
       );
-      await this.awaitDom(tabId, consentTimeout()).catch(() => null);
+      await navigated;
       await sleep(this._settleMs());
     }
     const result = await this.inject(tabId, consentClickJs(), consentTimeout());

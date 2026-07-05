@@ -154,7 +154,7 @@ export class PageFetcher {
       this._tabs.ownedTabIds.add(tabId);
       if (containerId) this._tabs.tabContainerIds.set(tabId, containerId);
 
-      await this._tabs.awaitDom(tabId, this._timeoutMs()).catch(() => null);
+      await this._tabs.awaitReady(tabId, this._timeoutMs());
       await sleep(1000);
       await this._tabs.acceptConsent(tabId);
 

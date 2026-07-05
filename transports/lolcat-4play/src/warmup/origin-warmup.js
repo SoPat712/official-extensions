@@ -21,7 +21,7 @@ const BLOCK_PATTERNS = [
 ];
 
 const PROGRESS_TEXT_RE =
-  /^(?:continue|next|proceed|start|search|i agree|agree|accept|accept all|allow all|yes,? continue|not now|skip|here)$/i;
+  /^(?:continue|next|proceed|i agree|agree|accept|accept all|allow all|yes,? continue|not now|skip|here)$/i;
 const PROGRESS_HREF_RE = /\/httpservice\/retry\/enablejs/i;
 const AUTH_HREF_RE = /accounts\.|\/servicelogin|\/signin|\/login\b|passive=true|flowname=glifwebsignin/i;
 
@@ -38,9 +38,14 @@ export class OriginBlockedError extends Error {
 }
 
 export const originFor = (url) => {
-  const parsed = new URL(url);
-  if (!["http:", "https:"].includes(parsed.protocol)) return null;
-  return parsed.origin;
+  if (typeof url !== "string" || !url) return null;
+  try {
+    const parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol)) return null;
+    return parsed.origin;
+  } catch {
+    return null;
+  }
 };
 
 export const warmupKeyFor = (origin, containerId) => `${containerId || "default"}\n${origin}`;
@@ -85,12 +90,10 @@ export const looksBlocked = (text, url = "") => {
   if (typeof text !== "string") return false;
   if (looksConsent(text, url)) return false;
 
-  // 1. Extract the title from HTML if present
   const titleMatch = /<title[^>]*>([^<]+)<\/title>/i.exec(text);
   const title = titleMatch ? titleMatch[1].trim() : "";
   const lowerTitle = title.toLowerCase();
 
-  // 2. Check for explicit bot check / captcha indicators in the title
   if (
     lowerTitle.includes("bot check") ||
     lowerTitle.includes("robot check") ||
@@ -122,7 +125,6 @@ export const looksBlocked = (text, url = "") => {
     return true;
   }
 
-  // 5. Strip scripts and styles to avoid matching embedded translation JSON strings or styles
   const cleanText = text
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "");

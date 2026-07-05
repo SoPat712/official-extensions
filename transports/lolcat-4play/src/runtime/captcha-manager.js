@@ -57,11 +57,17 @@ export class CaptchaManager {
     if (!this.captchaTabIds.has(tabId)) return false;
 
     let page = await this._tabs.inject(tabId, inspectPageJs(), this._inspectTimeout());
+    if (!page?.href) {
+      return false;
+    }
     let haystack = `${page?.title || ""}\n${page?.href || ""}\n${page?.text || ""}`;
 
     if (looksConsent(haystack, page?.href)) {
       await this._tabs.acceptConsent(tabId);
       page = await this._tabs.inject(tabId, inspectPageJs(), this._inspectTimeout());
+      if (!page?.href) {
+        return false;
+      }
       haystack = `${page?.title || ""}\n${page?.href || ""}\n${page?.text || ""}`;
     }
 
