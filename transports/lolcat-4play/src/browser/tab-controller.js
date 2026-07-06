@@ -1,4 +1,10 @@
-import { consentClickJs, sleep } from "../warmup/origin-warmup.js";
+import {
+  consentClickJs,
+  sleep,
+  warmupReadinessJs,
+} from "../warmup/origin-warmup.js";
+
+const POST_CONSENT_POLL_MS = 350;
 
 const READY_POLL_MS = 400;
 const READY_POLL_GRACE_MS = 1200;
@@ -112,6 +118,37 @@ export class TabController {
     return frameResult?.result ?? null;
   }
 
+  async waitForWarmupReady(tabId, timeoutMs = this._timeoutMs()) {
+    const deadline = Date.now() + Math.max(0, timeoutMs);
+    let lastState = null;
+
+    // Consent pages often disappear in-place after setting cookies, with no
+    // navigation event. Probe page state instead of sleeping on dom_ready alone.
+    while (Date.now() < deadline) {
+      const remaining = deadline - Date.now();
+      const state = await this.inject(
+        tabId,
+        warmupReadinessJs(),
+        Math.min(1500, remaining),
+      ).catch(() => null);
+
+      if (state) {
+        lastState = state;
+        if (state.searchBox || !state.consent) return state;
+      }
+
+      const waitMs = Math.min(
+        POST_CONSENT_POLL_MS,
+        Math.max(0, deadline - Date.now()),
+      );
+      if (waitMs <= 0) break;
+
+      await this.awaitDom(tabId, waitMs).catch(() => null);
+    }
+
+    return lastState;
+  }
+
   async acceptConsent(tabId) {
     const consentTimeout = () => Math.min(CONSENT_NAVIGATION_TIMEOUT_MS, this._timeoutMs());
     const result = await this.inject(tabId, consentClickJs(), consentTimeout());
@@ -121,6 +158,7 @@ export class TabController {
     this._warn(
       `accepted consent on tab ${tabId} (${result.label || result.via || "unknown"})`,
     );
+    await this.waitForWarmupReady(tabId, consentTimeout());
     await sleep(this._settleMs());
     return true;
   }
