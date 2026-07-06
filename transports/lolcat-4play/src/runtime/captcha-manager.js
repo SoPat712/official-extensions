@@ -1,4 +1,4 @@
-import { inspectPageJs, looksBlocked, looksConsent, originFor } from "../warmup/origin-warmup.js";
+import { classifyPage, inspectPageJs, originFor } from "../warmup/origin-warmup.js";
 import { wrapResponse } from "../net/response.js";
 
 export class CaptchaManager {
@@ -62,17 +62,19 @@ export class CaptchaManager {
     }
     let haystack = `${page?.title || ""}\n${page?.href || ""}\n${page?.text || ""}`;
 
-    if (looksConsent(haystack, page?.href)) {
+    let pageState = classifyPage(haystack, page?.href);
+    if (pageState.consent) {
       await this._tabs.acceptConsent(tabId);
       page = await this._tabs.inject(tabId, inspectPageJs(), this._inspectTimeout());
       if (!page?.href) {
         return false;
       }
       haystack = `${page?.title || ""}\n${page?.href || ""}\n${page?.text || ""}`;
+      pageState = classifyPage(haystack, page?.href);
     }
 
     const origin = originFor(page?.href || "");
-    if (!origin || looksBlocked(haystack, page?.href) || looksConsent(haystack, page?.href)) {
+    if (!origin || pageState.blocked || pageState.consent) {
       return false;
     }
 

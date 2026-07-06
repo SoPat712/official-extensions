@@ -8,6 +8,7 @@ import {
 import { solveChallenge } from "../net/flaresolverr.js";
 import {
   OriginBlockedError,
+  classifyPage,
   looksBlocked,
   looksConsent,
   sleep,
@@ -40,10 +41,11 @@ export class PageFetcher {
   }
 
   _wrapFetchedText(text, origin, containerId, url = "", tabId = null) {
-    if (origin && looksConsent(text, url)) {
+    const pageState = origin ? classifyPage(text, url) : null;
+    if (pageState?.consent) {
       throw new OriginBlockedError(origin, "response consent", tabId, "consent");
     }
-    if (origin && looksBlocked(text, url)) {
+    if (pageState?.blocked) {
       this._markBlocked(origin, containerId, "response block/captcha", tabId);
       throw new OriginBlockedError(origin, "response block/captcha", tabId);
     }
@@ -118,13 +120,14 @@ export class PageFetcher {
       });
       const text = await response.text();
 
-      if (origin && (looksConsent(text, url) || looksBlocked(text, url))) {
-        if (looksBlocked(text, url)) {
+      const pageState = origin ? classifyPage(text, url) : null;
+      if (pageState?.consent || pageState?.blocked) {
+        if (pageState.blocked) {
           const solved = await this.solveWithFlare(url, origin, containerId);
           if (solved) return solved;
         }
         this._warn(
-          `warmed curl fetch for ${origin} needs a live browser session (${looksConsent(text, url) ? "consent" : "block"}); falling back`,
+          `warmed curl fetch for ${origin} needs a live browser session (${pageState.consent ? "consent" : "block"}); falling back`,
         );
         return null;
       }
