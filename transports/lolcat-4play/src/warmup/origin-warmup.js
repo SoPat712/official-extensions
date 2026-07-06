@@ -86,10 +86,8 @@ export const looksConsent = (text, url = "") => {
   return CONSENT.texts.some((t) => sample.includes(t));
 };
 
-export const looksBlocked = (text, url = "") => {
-  if (typeof text !== "string") return false;
-  if (looksConsent(text, url)) return false;
-
+const scanBlockedPage = (text, url = "") => {
+  // 1. Extract the title from HTML if present
   const titleMatch = /<title[^>]*>([^<]+)<\/title>/i.exec(text);
   const title = titleMatch ? titleMatch[1].trim() : "";
   const lowerTitle = title.toLowerCase();
@@ -131,6 +129,23 @@ export const looksBlocked = (text, url = "") => {
 
   const sample = cleanText.slice(0, 250000);
   return BLOCK_PATTERNS.some((pattern) => pattern.test(sample));
+};
+
+export const looksBlocked = (text, url = "") => {
+  if (typeof text !== "string") return false;
+  if (looksConsent(text, url)) return false;
+  return scanBlockedPage(text, url);
+};
+
+export const classifyPage = (text, url = "") => {
+  if (typeof text !== "string") {
+    return { consent: false, blocked: false };
+  }
+  const consent = looksConsent(text, url);
+  return {
+    consent,
+    blocked: consent ? false : scanBlockedPage(text, url),
+  };
 };
 
 export const inspectPageJs = () => `(() => {
@@ -211,6 +226,59 @@ export const consentClickJs = () => `(() => {
   }
 
   return { consent: true, progressed: false, href: location.href, title: document.title || "" };
+})()`;
+
+export const warmupReadinessJs = () => `(() => {
+  const M = ${JSON.stringify(CONSENT)};
+  const isVisible = (el) => {
+    if (!el) return false;
+    const style = getComputedStyle(el);
+    const box = el.getBoundingClientRect();
+    return style.visibility !== "hidden" && style.display !== "none" && box.width > 0 && box.height > 0;
+  };
+  const norm = (value) => (value || "").replace(/\\s+/g, " ").trim().toLowerCase();
+  const bySelector = () => {
+    for (const selector of M.acceptSelectors) {
+      try {
+        const el = document.querySelector(selector);
+        if (el && isVisible(el)) return el;
+      } catch {}
+    }
+    return null;
+  };
+  const controls = [
+    ...document.querySelectorAll(
+      'button, input[type="submit"], input[type="button"], [role="button"], a[role="button"]',
+    ),
+  ].map((el) => ({
+    el,
+    text: norm(el.innerText || el.value || el.getAttribute("aria-label") || el.textContent),
+  }));
+  const acceptSet = new Set(M.acceptText);
+  const rejectSet = new Set(M.rejectText);
+  const acceptButtons = controls.filter(({ text }) => acceptSet.has(text) || text.startsWith("accept all"));
+  const rejectButtons = controls.filter(({ text }) => rejectSet.has(text));
+  const heading = norm(document.querySelector('h1, h2, [role="heading"]')?.textContent);
+  const host = location.hostname.toLowerCase();
+  const consent =
+    M.texts.some((t) => heading.includes(t)) ||
+    M.hosts.some((h) => host.includes(h)) ||
+    (acceptButtons.length > 0 && rejectButtons.length > 0) ||
+    Boolean(bySelector());
+  const searchBox = [
+    ...document.querySelectorAll([
+      'textarea[name="q"]',
+      'input[name="q"]',
+      'input[type="search"]',
+      'input[role="searchbox"]',
+      'textarea[role="searchbox"]',
+      'input[aria-label*="search" i]',
+      'textarea[aria-label*="search" i]',
+      'input[placeholder*="search" i]',
+      'textarea[placeholder*="search" i]',
+    ].join(',')),
+  ].some((el) => !el.disabled && !el.readOnly && isVisible(el));
+  return { consent, searchBox, href: location.href, title: document.title || "" };
 })()`;
 
 export const progressPageJs = () => `(() => {
