@@ -1,9 +1,8 @@
 import { tabSpell } from "../browser/browser.js";
 import {
   OriginBlockedError,
+  classifyPage,
   inspectPageJs,
-  looksBlocked,
-  looksConsent,
   originFor,
   progressPageJs,
   sleep,
@@ -12,6 +11,7 @@ import {
 
 const WARMUP_ACTION_TIMEOUT_MS = 5000;
 const OPEN_READY_TIMEOUT_MS = 2000;
+const MAX_CONSENT_INSPECTIONS = 3;
 
 export class WarmupDriver {
   constructor({
@@ -193,20 +193,24 @@ export class WarmupDriver {
     return true;
   }
 
-  async _inspectPage(origin, containerId, tabId) {
+  async _inspectPage(origin, containerId, tabId, consentAttempts = 0) {
     const page = await this._inject(
       tabId,
       inspectPageJs(),
       Math.min(WARMUP_ACTION_TIMEOUT_MS, this._timeoutMs()),
     );
     const haystack = `${page?.title || ""}\n${page?.href || ""}\n${page?.text || ""}`;
-    if (looksConsent(haystack, page?.href)) {
-      if (await this._acceptConsent?.(tabId)) {
-        return this._inspectPage(origin, containerId, tabId);
+    const pageState = classifyPage(haystack, page?.href);
+    if (pageState.consent) {
+      const canRetryConsent =
+        consentAttempts < MAX_CONSENT_INSPECTIONS &&
+        (await this._acceptConsent?.(tabId));
+      if (canRetryConsent) {
+        return this._inspectPage(origin, containerId, tabId, consentAttempts + 1);
       }
       throw new OriginBlockedError(origin, "warmup consent", tabId, "consent");
     }
-    if (looksBlocked(haystack, page?.href)) {
+    if (pageState.blocked) {
       this.markBlocked(origin, containerId, "warmup page block/captcha", tabId);
       throw new OriginBlockedError(origin, "warmup page block/captcha", tabId);
     }
