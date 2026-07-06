@@ -1,6 +1,9 @@
 const BASE_URL = "https://www.reddit.com/search.rss";
 const SEARCH_LIMIT = 25;
+const CACHE_TTL_MS = 2 * 60 * 1000;
 const FALLBACK_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0";
+
+let cache = null;
 
 const _decodeEntities = (str) =>
   str
@@ -58,6 +61,12 @@ export default class RedditEngine {
     },
   ];
 
+  init(ctx) {
+    if (ctx.useCache) {
+      cache = ctx.useCache("reddit-search", CACHE_TTL_MS);
+    }
+  }
+
   configure(settings) {
     if (typeof settings.includeNsfw === "string") this.includeNsfw = settings.includeNsfw;
     if (typeof settings.sortBy === "string") this.sortBy = settings.sortBy;
@@ -69,6 +78,15 @@ export default class RedditEngine {
   }
 
   async executeSearch(query, page = 1, timeFilter, context) {
+    const cacheKey = `${query}|${this.sortBy}|${this._mapTime(timeFilter)}|${this.includeNsfw}|${page}`;
+
+    if (cache) {
+      try {
+        const cached = await cache.get(cacheKey);
+        if (cached) return cached;
+      } catch {}
+    }
+
     const params = new URLSearchParams({
       q: query,
       sort: this.sortBy,
@@ -109,6 +127,12 @@ export default class RedditEngine {
         snippet: content.substring(0, 200) || category,
         source: this.name,
       });
+    }
+
+    if (cache && results.length) {
+      try {
+        await cache.set(cacheKey, results, CACHE_TTL_MS);
+      } catch {}
     }
 
     return results;
