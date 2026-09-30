@@ -41,15 +41,42 @@ const _cleanHost = (host) => {
   return value;
 };
 
+const _expandV6 = (ip) => {
+  let value = ip.toLowerCase().split("%")[0];
+  const dotted = value.match(/^(.*:)(\d+\.\d+\.\d+\.\d+)$/);
+  if (dotted) {
+    if (isIP(dotted[2]) !== 4) return null;
+    const [a, b, c, d] = dotted[2].split(".").map(Number);
+    value = `${dotted[1]}${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`;
+  }
+  const halves = value.split("::");
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(":") : [];
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+  const fill = halves.length === 2 ? 8 - head.length - tail.length : 0;
+  if (fill < 0 || (halves.length === 1 && head.length !== 8)) return null;
+  const groups = [...head, ...Array(fill).fill("0"), ...tail].map((g) => parseInt(g, 16));
+  return groups.length === 8 && groups.every((g) => g >= 0 && g <= 0xffff) ? groups : null;
+};
+
+const _v4From = (hi, lo) => `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+
 const _isBlockedV6 = (ip) => {
-  const lower = ip.toLowerCase();
-  if (lower === "::" || lower === "::1") return true;
-  const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  if (mapped) return RESERVED_IPV4.test(mapped[1]);
-  const first = parseInt(lower.split(":")[0] || "0", 16);
-  if ((first & 0xfe00) === 0xfc00) return true;
-  if ((first & 0xffc0) === 0xfe80) return true;
-  if ((first & 0xff00) === 0xff00) return true;
+  const g = _expandV6(ip);
+  if (!g) return true;
+  const zeroPrefix = (n) => g.slice(0, n).every((x) => x === 0);
+  if (zeroPrefix(6)) return RESERVED_IPV4.test(_v4From(g[6], g[7]));
+  if (zeroPrefix(5) && g[5] === 0xffff) return RESERVED_IPV4.test(_v4From(g[6], g[7]));
+  if (zeroPrefix(4) && g[4] === 0xffff && g[5] === 0) return RESERVED_IPV4.test(_v4From(g[6], g[7]));
+  if (g[0] === 0x64 && g[1] === 0xff9b) {
+    if (g[2] !== 0 || g[3] !== 0 || g[4] !== 0 || g[5] !== 0) return true;
+    return RESERVED_IPV4.test(_v4From(g[6], g[7]));
+  }
+  if (g[0] === 0x2002) return RESERVED_IPV4.test(_v4From(g[1], g[2]));
+  if ((g[0] & 0xfe00) === 0xfc00) return true;
+  if ((g[0] & 0xffc0) === 0xfe80) return true;
+  if ((g[0] & 0xffc0) === 0xfec0) return true;
+  if ((g[0] & 0xff00) === 0xff00) return true;
   return false;
 };
 
