@@ -370,7 +370,7 @@
       "path": "engines/duckduckgo",
       "name": "DuckDuckGo",
       "description": "DuckDuckGo web search.",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "minDegoogVersion": "0.19.0",
       "legacyIds": [
         "duckduckgo",
