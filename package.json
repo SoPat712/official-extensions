@@ -1,6 +1,6 @@
 {
   "name": "official-extensions",
-  "description": "Plugins, themes, engines, and transports for degoog search.",
+  "description": "Plugins, themes, engines, transports and favicon providers for degoog search.",
   "repo-image": "https://avatars.githubusercontent.com/u/280656364",
   "author": "fccview",
   "plugins": [
@@ -568,6 +568,50 @@
       "name": "Qwant Autocomplete",
       "description": "Suggestions from Qwant.",
       "version": "1.1.0"
+    }
+  ],
+  "favicon": [
+    {
+      "path": "favicon/google",
+      "name": "Google Favicons",
+      "description": "Google's favicon service, the icons degoog has always shown. Google sees your result domains, never your visitors.",
+      "version": "1.0.0",
+      "minDegoogVersion": "1.0.0"
+    },
+    {
+      "path": "favicon/duckduckgo",
+      "name": "DuckDuckGo Favicons",
+      "description": "DuckDuckGo's icon service. It mostly hands back each site's .ico, so some icons are small. DuckDuckGo sees your result domains, never your visitors.",
+      "version": "1.0.0",
+      "minDegoogVersion": "1.0.0"
+    },
+    {
+      "path": "favicon/direct",
+      "name": "Site favicon (experimental)",
+      "description": "Fetches each site's own icon from its homepage, with no favicon service in between. Every site in your results gets a request from your server, even the ones nobody clicks.",
+      "version": "1.0.0",
+      "minDegoogVersion": "1.0.0"
+    },
+    {
+      "path": "favicon/identicon",
+      "name": "Identicon (offline)",
+      "description": "Draws a colourful pattern from the domain name and makes no network requests. The one to pick for Tor or offline instances.",
+      "version": "1.0.0",
+      "minDegoogVersion": "1.0.0"
+    },
+    {
+      "path": "favicon/yandex",
+      "name": "Yandex Favicons",
+      "description": "Yandex's favicon service, with sharp 120px icons for most sites. Yandex sees your result domains, never your visitors.",
+      "version": "1.0.0",
+      "minDegoogVersion": "1.0.0"
+    },
+    {
+      "path": "favicon/kagi",
+      "name": "Kagi Favicons",
+      "description": "The favicon proxy behind Kagi News, no account needed. It isn't a documented API, so keep another provider below it.",
+      "version": "1.0.0",
+      "minDegoogVersion": "1.0.0"
     }
   ],
   "shortcuts": [
