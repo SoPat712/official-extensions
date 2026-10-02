@@ -51,6 +51,7 @@ export default class FourPlayTransport {
   description =
     "Fetches pages using a real Firefox session via the official [lolcat 4play](https://addons.mozilla.org/en-GB/firefox/addon/4play/) browser extension. Point the extension at this transport's WebSocket address instead of a separate server.";
   needsAppRestart = true;
+  handlesChallenges = true;
 
   _session = null;
   _sessionId = Math.random().toString(36).slice(2, 8);
@@ -170,6 +171,10 @@ export default class FourPlayTransport {
 
   get settingsSchema() {
     return settingsSchemaFor(this.name);
+  }
+
+  get timeoutMs() {
+    return this._settings.timeoutMs;
   }
 
   wsHandler = {

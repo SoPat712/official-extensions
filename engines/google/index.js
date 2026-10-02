@@ -1,81 +1,16 @@
 import * as cheerio from "cheerio";
 
-const GSA_SAMSUNG_MODELS = [
-  "S8500",
-  "S5230",
-  "S8530",
-  "S8300",
-  "I8910",
-  "S7350",
-  "B7300",
-  "S5600",
-  "S8000",
-  "S5330",
-  "C3510",
-  "S5250",
-  "S7220",
-  "S5560",
-  "B3410",
-  "S5620",
-  "S3310",
-  "S3370",
-  "S3650",
-  "S5233",
-  "S5260",
-  "S5300",
-  "S5360",
-  "S5380",
-  "S5570",
-  "S5660",
-  "S5670",
-  "S5830",
-  "S6500",
-  "S7070",
-  "S7230",
-  "S7550",
-  "S7560",
-  "S8600",
-  "B2100",
-  "B2700",
-  "B3210",
-  "B3310",
-  "B5310",
-  "B7320",
-  "B7722",
-  "C3011",
-  "C3050",
-  "C3212",
-  "C3300",
-  "C3312",
-  "C3520",
-  "C3530",
-  "C3780",
-  "C5220",
-  "C5510",
-  "C6112",
-  "C6712",
+const NOKIA_USER_AGENTS = [
+  "Nokia7610/2.0 (5.0509.0) SymbianOS/7.0s Series60/2.1 Profile/MIDP-2.0 Configuration/CLDC-1.0",
+  "Nokia7610/2.0 (7.0642.0) SymbianOS/7.0s Series60/2.1 Profile/MIDP-2.0 Configuration/CLDC-1.0",
+  "Nokia6230/2.0 (05.50) Profile/MIDP-2.0 Configuration/CLDC-1.1",
+  "Nokia6230i/2.0 (03.80) Profile/MIDP-2.0 Configuration/CLDC-1.1",
+  "Nokia6280/2.0 (03.60) Profile/MIDP-2.0 Configuration/CLDC-1.1",
+  "NokiaN72/2.0617.1.0.3 Series60/2.8 Profile/MIDP-2.0 Configuration/CLDC-1.1",
 ];
-const GSA_REGIONS = ["XE", "XX", "JF", "XP", "DD", "DV", "XI"];
-const GSA_DOLFIN = ["1.5", "2.0", "2.2", "3.0"];
-const GSA_SAMSUNG_BROWSERS = ["Dolfin", "Jasmine"];
-const GSA_LETTERS = "ABCDEFGHJKL";
-const GSA_DIGITS = "0123456789";
-const GO_APP_MARKER = "NSTNWV";
 
-const _pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-const _randInt = (min, max) =>
-  min + Math.floor(Math.random() * (max - min + 1));
-const _randChars = (n, alphabet) =>
-  Array.from({ length: n }, () => _pick(alphabet.split(""))).join("");
-
-const _gsaAgent = () => {
-  const model = _pick(GSA_SAMSUNG_MODELS);
-  const firmware = `${model}${_pick(GSA_REGIONS)}${_randChars(2, GSA_LETTERS)}${_randChars(1, GSA_DIGITS)}`;
-  const browser = _pick(GSA_SAMSUNG_BROWSERS);
-  const browserVer = browser === "Dolfin" ? _pick(GSA_DOLFIN) : "1.0";
-  const engine = browser === "Dolfin" ? "Nextreaming" : "Qtv/5.3";
-  return `SAMSUNG-GT-${model}/${firmware} SHP/VPP/R5 ${browser}/${browserVer} ${engine} SMM-MMS/1.2.0 profile/MIDP-2.1 configuration/CLDC-1.1 ${GO_APP_MARKER}`;
-};
+const _nokiaAgent = () =>
+  NOKIA_USER_AGENTS[Math.floor(Math.random() * NOKIA_USER_AGENTS.length)];
 
 const TBS_MAP = {
   hour: "qdr:h",
@@ -139,13 +74,22 @@ const _isInterstitial = (html) => {
   return MUTANT_SIGNATURES.some((m) => head.includes(m));
 };
 
+const GOTO_PREFIX = "/goto?";
+const GOTO_ORIGIN = "https://www.google.com";
+const GOTO_TIMEOUT_MS = 5000;
+
+const _isExternal = (url) =>
+  url.startsWith("http") && !url.includes("google.com");
+
 const _parseDesktop = ($, name) => {
   const results = [];
   const seen = new Set();
   $("a:has(h3)").each((_, el) => {
     const linkEl = $(el);
-    const url = _resolveHref(linkEl.attr("href") || "");
-    if (!url.startsWith("http") || url.includes("google.com")) return;
+    const href = linkEl.attr("href") || "";
+    const goto = href.startsWith(GOTO_PREFIX) ? `${GOTO_ORIGIN}${href}` : "";
+    const url = goto || _resolveHref(href);
+    if (!goto && !_isExternal(url)) return;
     const title = linkEl.find("h3").first().text().trim();
     if (!title || seen.has(url)) return;
     seen.add(url);
@@ -159,8 +103,56 @@ const _parseDesktop = ($, name) => {
   return results;
 };
 
+const _followGoto = async (url, userAgent) => {
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      redirect: "manual",
+      headers: { "User-Agent": userAgent },
+      signal: AbortSignal.timeout(GOTO_TIMEOUT_MS),
+    });
+    await response.body?.cancel();
+    const location = response.headers.get("location") || "";
+    return _isExternal(location) ? location : "";
+  } catch {
+    return "";
+  }
+};
+
+const _resolveGotos = async (results, userAgent) => {
+  const resolved = await Promise.all(
+    results.map(async (result) =>
+      result.url.startsWith(GOTO_ORIGIN)
+        ? { ...result, url: await _followGoto(result.url, userAgent) }
+        : result,
+    ),
+  );
+  const seen = new Set();
+  return resolved.filter((result) => {
+    if (!result.url || seen.has(result.url)) return false;
+    seen.add(result.url);
+    return true;
+  });
+};
+
+const _parseWml = ($, name) => {
+  const results = [];
+  const seen = new Set();
+  $("div.zMzFAb").each((_, el) => {
+    const block = $(el);
+    const linkEl = block.find("a.fuLhoc").first();
+    const title = linkEl.find("span.CVA68e").first().text().trim();
+    const url = _resolveHref(linkEl.attr("href") || "");
+    if (!title || !url.startsWith("http") || seen.has(url)) return;
+    seen.add(url);
+    const snippet = block.find("div.taTFJ span.FrIlee").text().trim();
+    results.push({ title, url, snippet, source: name });
+  });
+  return results;
+};
+
 export const description =
-  "Google web search. The [4play (lolcat)](https://github.com/degoog-org/official-extensions/tree/main/transports/lolcat-4play) transport is mandatory: Google now requires a real browser session, so this engine returns nothing over plain HTTP transports. Install 4play from the Store tab and select it as this engine's transport. If you cannot run 4play, use the Google CSE engine instead, it works over plain HTTP.";
+  "Google web search. Lite results come from Google's old mobile page and work over any transport, but Google rate-limits that page per IP and busy instances start getting CAPTCHAs. The [4play (lolcat)](https://github.com/degoog-org/official-extensions/tree/main/transports/lolcat-4play) transport is still the recommended way to run this engine. It fetches through a real Firefox session, and HTML results only work with it. Install 4play from the Store tab and select it as this engine's transport. If you can't run 4play, use lite results or the Google CSE engine.";
 
 export default class GoogleEngine {
   isClientExposed = false;
@@ -185,7 +177,7 @@ export default class GoogleEngine {
       optionLabels: ["Lite results", "HTML results"],
       default: "lite",
       description:
-        "Both modes need the [4play (lolcat)](https://github.com/degoog-org/official-extensions/tree/main/transports/lolcat-4play) transport selected above, it is mandatory for this engine. Lite results use the lightweight mobile page, HTML results fetch the full desktop page for better titles and snippets.",
+        "Lite results come from Google's old mobile page and work without 4play, though Google rate-limits them per IP. HTML results fetch the full desktop page for better titles and snippets, and they need the [4play (lolcat)](https://github.com/degoog-org/official-extensions/tree/main/transports/lolcat-4play) transport selected above. Use 4play for either mode if you can.",
     },
     {
       key: "safeSearch",
@@ -274,9 +266,12 @@ export default class GoogleEngine {
 
   async _searchHtml(query, page, timeFilter, context) {
     const params = this._buildParams(query, page, timeFilter, context);
-    const userAgent = context?.userAgent?.() || _gsaAgent();
+    const userAgent = context?.userAgent?.() || _nokiaAgent();
     const html = await this._request(params, userAgent, context);
-    return _parseDesktop(cheerio.load(html), this.name);
+    return _resolveGotos(
+      _parseDesktop(cheerio.load(html), this.name),
+      userAgent,
+    );
   }
 
   async _searchLite(query, page = 1, timeFilter, context) {
@@ -284,13 +279,13 @@ export default class GoogleEngine {
     const lang = context?.lang || "en";
     const params = new URLSearchParams({
       q: query,
+      sca_esv: "1",
       hl: lang,
       lr: `lang_${lang}`,
       ie: "utf8",
       oe: "utf8",
-      start: String(start),
-      filter: "0",
     });
+    if (start) params.set("start", String(start));
 
     const tbs =
       timeFilter === "custom"
@@ -301,12 +296,11 @@ export default class GoogleEngine {
 
     const doFetch = context?.fetch ?? fetch;
     const response = await doFetch(
-      `https://www.google.com/search?${params.toString()}`,
+      `https://www.google.com/wml/search?${params.toString()}`,
       {
         headers: {
-          "User-Agent": _gsaAgent(),
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "User-Agent": _nokiaAgent(),
+          Accept: "*/*",
           "Accept-Language":
             context?.buildAcceptLanguage?.() || "en-US,en;q=0.9",
           Cookie: "CONSENT=YES+",
@@ -314,6 +308,17 @@ export default class GoogleEngine {
         redirect: "follow",
       },
     );
+
+    if ((response.url || "").includes(SERP_SORRY_PATH)) {
+      if (context?.engineError) {
+        throw context.engineError(
+          "captcha",
+          `${this.name} returned a CAPTCHA page`,
+          { httpStatus: response.status, engine: this.name },
+        );
+      }
+      throw new Error(`${this.name} returned a CAPTCHA page`);
+    }
 
     context?.sentinel?.(response, this.name);
     const html = await response.text();
@@ -331,64 +336,6 @@ export default class GoogleEngine {
       );
     }
 
-    const $ = cheerio.load(html);
-    const results = [];
-    const seen = new Set();
-
-    const pushResult = (title, href, snippet) => {
-      const url = _resolveHref(href);
-      if (
-        title &&
-        url &&
-        url.startsWith("http") &&
-        !url.includes("google.com/search")
-      ) {
-        results.push({ title, url, snippet, source: this.name });
-        return true;
-      }
-      return false;
-    };
-
-    $('a[href^="/url?q="]').each((_, el) => {
-      const linkEl = $(el);
-      const title =
-        linkEl.find("h3").first().text().trim() ||
-        linkEl.find("span").first().text().trim();
-      const href = linkEl.attr("href") || "";
-      const hveidBlock = linkEl.closest("[data-hveid]");
-      const snippet =
-        hveidBlock.find("[data-sncf]").first().text().trim() ||
-        hveidBlock.find("div").last().text().trim() ||
-        linkEl.parent().next("div").text().trim();
-      const dedupKey = href.split("&")[0];
-      if (seen.has(dedupKey)) return;
-      seen.add(dedupKey);
-      pushResult(title, href, snippet);
-    });
-
-    if (results.length === 0) {
-      $("[data-hveid] a[href]").each((_, el) => {
-        const linkEl = $(el);
-        const title =
-          linkEl.find("h3").first().text().trim() ||
-          linkEl
-            .closest("[data-hveid]")
-            .find("[role='link']")
-            .first()
-            .text()
-            .trim() ||
-          linkEl.find("span").first().text().trim();
-        const href = linkEl.attr("href") || "";
-        const snippet = linkEl
-          .closest("[data-hveid]")
-          .find("[data-sncf]")
-          .first()
-          .text()
-          .trim();
-        pushResult(title, href, snippet);
-      });
-    }
-
-    return results;
+    return _parseWml(cheerio.load(html), this.name);
   }
 }

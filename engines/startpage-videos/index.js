@@ -20,6 +20,11 @@ const _isCaptcha = (html) => {
   return CAPTCHA_MARKERS.some((m) => head.includes(m));
 };
 
+const READY_SELECTOR = "#debug";
+const ANUBIS_MARKER = 'id="anubis_challenge"';
+
+const _isAnubisGate = (html) => html.includes(ANUBIS_MARKER);
+
 const _buildPrefs = (safeSearch) => {
   const f = safeSearch === "on" ? "0" : "1";
   return [
@@ -71,6 +76,7 @@ const _absolute = (url) => {
 
 export default class StartpageVideosEngine {
   isClientExposed = false;
+  challenges = ["anubis"];
   name = "Startpage Videos";
   bangShortcut = "spv";
   safeSearch = "off";
@@ -124,7 +130,7 @@ export default class StartpageVideosEngine {
 
   async _getPage(doFetch, params, context) {
     const url = `${SEARCH_URL}?${params.toString()}`;
-    const res = await doFetch(url, { headers: this._baseHeaders(context), redirect: "follow" });
+    const res = await doFetch(url, { headers: this._baseHeaders(context), redirect: "follow", match: { domMatch: READY_SELECTOR } });
     context?.sentinel?.(res, this.name);
     return res.text();
   }
@@ -140,6 +146,7 @@ export default class StartpageVideosEngine {
       },
       body: body.toString(),
       redirect: "follow",
+      match: { domMatch: READY_SELECTOR },
     });
     context?.sentinel?.(res, this.name);
     return res.text();
@@ -175,6 +182,14 @@ export default class StartpageVideosEngine {
         params.set("with_date", TIME_MAP[timeFilter]);
       }
       html = await this._getPage(doFetch, params, context);
+    }
+
+    if (_isAnubisGate(html)) {
+      const message = `${this.name} is still showing its Anubis check. On a browser transport, let the page finish loading in the browser.`;
+      if (context?.engineError) {
+        throw context.engineError("interstitial", message, { engine: this.name });
+      }
+      throw new Error(message);
     }
 
     if (_isCaptcha(html)) {

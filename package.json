@@ -252,15 +252,15 @@
       "name": "4play (lolcat)",
       "minDegoogVersion": "0.23.0",
       "description": "Fetches pages with a real Firefox session through the official lolcat 4play browser extension.",
-      "version": "1.8.1"
+      "version": "1.8.2"
     }
   ],
   "engines": [
     {
       "path": "engines/google",
       "name": "Google",
-      "description": "Google web search. Needs the 4play lolcat transport, because Google stopped returning results over plain HTTP. Use Google CSE if you cannot run 4play.",
-      "version": "1.2.1",
+      "description": "Google web search. Lite results work over plain HTTP, but Google rate-limits them per IP. 4play is still the recommended transport, and HTML results need it.",
+      "version": "1.2.2",
       "minDegoogVersion": "0.19.0",
       "legacyIds": [
         "google",
@@ -293,7 +293,7 @@
       "path": "engines/google-videos",
       "name": "Google Videos",
       "description": "Google video search.",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "minDegoogVersion": "0.19.0",
       "legacyIds": [
         "google-videos",
@@ -408,8 +408,9 @@
     {
       "path": "engines/startpage",
       "name": "Startpage",
-      "description": "Startpage web search. Handles the Anubis proof-of-work gate itself, so you do not need a browser transport. Turn on Anonymous View if you want result links to open through Startpage's proxy.",
-      "version": "1.2.0"
+      "description": "Startpage web search. degoog gets through Startpage's Anubis check by itself, on any transport. Turn on Anonymous View if you want result links to open through Startpage's proxy.",
+      "version": "1.3.0",
+      "minDegoogVersion": "1.0.0"
     },
     {
       "path": "engines/internet-archive",
@@ -504,22 +505,22 @@
       "path": "engines/startpage-images",
       "name": "Startpage Images",
       "description": "Startpage image search with thumbnails proxied through Startpage.",
-      "version": "1.0.0",
-      "minDegoogVersion": "0.23.0"
+      "version": "1.1.0",
+      "minDegoogVersion": "1.0.0"
     },
     {
       "path": "engines/startpage-videos",
       "name": "Startpage Videos",
       "description": "Startpage video search fetched anonymously through Startpage.",
-      "version": "1.0.0",
-      "minDegoogVersion": "0.23.0"
+      "version": "1.1.0",
+      "minDegoogVersion": "1.0.0"
     },
     {
       "path": "engines/startpage-news",
       "name": "Startpage News",
       "description": "Startpage news search. Each result names its outlet.",
-      "version": "1.0.0",
-      "minDegoogVersion": "0.23.0"
+      "version": "1.1.0",
+      "minDegoogVersion": "1.0.0"
     }
   ],
   "autocomplete": [

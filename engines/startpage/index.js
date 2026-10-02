@@ -1,12 +1,3 @@
-import {
-  ANUBIS_AUTH_COOKIE,
-  buildPassUrl,
-  crackingDiocane,
-  hasChallenge,
-  readAuthCookie,
-  readChallenge,
-} from "./anubis.js";
-
 const FALLBACK_UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36";
 const BASE_URL = "https://www.startpage.com";
 const SEARCH_URL = `${BASE_URL}/sp/search`;
@@ -14,8 +5,8 @@ const SEARCH_URL = `${BASE_URL}/sp/search`;
 const TIME_MAP = { hour: "h", day: "d", week: "w", month: "m", year: "y" };
 const SAFE_MAP = { off: "none", on: "heavy" };
 
-const AUTH_TTL_MS = 4 * 60 * 1000;
-const DEFAULT_MAX_DIFFICULTY = 4;
+const READY_SELECTOR = "#debug";
+const ANUBIS_MARKER = 'id="anubis_challenge"';
 
 const CAPTCHA_MARKERS = [
   "/sp/captcha",
@@ -33,6 +24,8 @@ const _isCaptcha = (html) => {
   const head = html.slice(0, 6000);
   return CAPTCHA_MARKERS.some((m) => head.includes(m));
 };
+
+const _isAnubisGate = (html) => html.includes(ANUBIS_MARKER);
 
 const _isSuspended = (html) => {
   const head = html.slice(0, 6000);
@@ -109,40 +102,16 @@ export default class StartpageEngine {
       options: ["off", "on"],
       description: "Filter explicit content from search results.",
     },
-    {
-      key: "solveAnubis",
-      label: "Solve Anubis Challenge",
-      type: "toggle",
-      default: "true",
-      description: "Startpage fronts search with an [Anubis](https://github.com/TecharoHQ/anubis) proof-of-work gate that plain HTTP clients cannot pass. Solving costs around 40ms of CPU and the token is reused for four minutes. Turn this off only if you reach Startpage through a browser transport that already solves it.",
-    },
-    {
-      key: "anubisMaxDifficulty",
-      label: "Max Anubis Difficulty",
-      type: "number",
-      default: "4",
-      placeholder: "4",
-      min: "1",
-      max: "8",
-      visibleWhen: { key: "solveAnubis", equals: "true" },
-      description: "Refuse a challenge harder than this instead of burning CPU on it. Startpage currently serves difficulty 4, and every step up multiplies the work by 16, so 6 already costs several seconds per search.",
-    },
   ];
 
+  challenges = ["anubis"];
   useAnonymousView = false;
   safeSearch = "off";
-  solveAnubis = true;
-  anubisMaxDiff = DEFAULT_MAX_DIFFICULTY;
   _searchSc = null;
-  _spAuth = null;
-  _spAuthAt = 0;
 
   configure(settings) {
     this.useAnonymousView = settings.useAnonymousView === true || settings.useAnonymousView === "true";
     if (typeof settings.safeSearch === "string") this.safeSearch = settings.safeSearch;
-    this.solveAnubis = settings.solveAnubis !== false && settings.solveAnubis !== "false";
-    const maxDiff = parseInt(settings.anubisMaxDifficulty, 10);
-    this.anubisMaxDiff = Number.isInteger(maxDiff) && maxDiff > 0 ? maxDiff : DEFAULT_MAX_DIFFICULTY;
   }
 
   _breach(context, status, message) {
@@ -161,10 +130,7 @@ export default class StartpageEngine {
   }
 
   _cookieHeader() {
-    const jar = [`preferences=${_buildPrefs(this.safeSearch)}`];
-    const fresh = this._spAuth && Date.now() - this._spAuthAt < AUTH_TTL_MS;
-    if (fresh) jar.push(`${ANUBIS_AUTH_COOKIE}=${this._spAuth}`);
-    return jar.join("; ");
+    return `preferences=${_buildPrefs(this.safeSearch)}`;
   }
 
   _baseHeaders(context) {
@@ -194,61 +160,17 @@ export default class StartpageEngine {
     return html;
   }
 
-  async _passGate(doFetch, html, url, context) {
-    const challenge = readChallenge(html);
-    if (!challenge) {
-      throw this._gateError(context, `${this.name} served an Anubis challenge that could not be read`);
-    }
-    if (challenge.difficulty > this.anubisMaxDiff) {
-      throw this._gateError(
-        context,
-        `${this.name} raised Anubis difficulty to ${challenge.difficulty}, above the configured maximum of ${this.anubisMaxDiff}`,
-      );
-    }
-
-    const solved = crackingDiocane(challenge.data, challenge.difficulty);
-    if (!solved) {
-      throw this._gateError(context, `${this.name} found no Anubis nonce at difficulty ${challenge.difficulty}`);
-    }
-
-    const res = await doFetch(buildPassUrl(BASE_URL, challenge, solved, url), {
-      headers: this._baseHeaders(context),
-      redirect: "manual",
-    });
-
-    const auth = readAuthCookie(res);
-    if (!auth) return;
-    this._spAuth = auth;
-    this._spAuthAt = Date.now();
-  }
-
   async _openPage(doFetch, url, init, context) {
-    const res = await doFetch(url, init);
+    const res = await doFetch(url, { ...init, match: { domMatch: READY_SELECTOR } });
     context?.sentinel?.(res, this.name);
     const html = await res.text();
-    if (!hasChallenge(html)) return this._guardPage(html, context);
-
-    if (!this.solveAnubis) {
+    if (_isAnubisGate(html)) {
       throw this._gateError(
         context,
-        `${this.name} served an Anubis proof-of-work challenge and solving is disabled`,
+        `${this.name} is still showing its Anubis check. On a browser transport, let the page finish loading in the browser.`,
       );
     }
-
-    await this._passGate(doFetch, html, url, context);
-
-    const headers = { ...init.headers, Cookie: this._cookieHeader() };
-    const retry = await doFetch(url, { ...init, headers });
-    context?.sentinel?.(retry, this.name);
-    const retryHtml = await retry.text();
-
-    if (hasChallenge(retryHtml)) {
-      throw this._gateError(
-        context,
-        `${this.name} re-served an Anubis challenge after a solved proof of work`,
-      );
-    }
-    return this._guardPage(retryHtml, context);
+    return this._guardPage(html, context);
   }
 
   async _getPage(doFetch, params, context) {
