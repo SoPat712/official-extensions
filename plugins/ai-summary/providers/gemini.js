@@ -21,19 +21,17 @@ const toGeminiContents = (messages) => {
   return { contents, system };
 };
 
-const callGemini = async (config, messages, opts) => {
+const callGemini = async (config, messages, opts, withThinkingConfig = true) => {
   const base = resolveProviderBaseUrl(config.baseUrl ?? "", GEMINI_DEFAULT_BASE);
   const url = `${base}/models/${encodeURIComponent(config.model)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(config.apiKey)}`;
   const { contents, system } = toGeminiContents(messages);
-  const body = {
-    contents,
-    generationConfig: {
-      maxOutputTokens: opts.maxTokens,
-      thinkingConfig: opts.enableThinking
-        ? { includeThoughts: true }
-        : { thinkingBudget: 0 },
-    },
-  };
+  const generationConfig = { maxOutputTokens: opts.maxTokens };
+  if (withThinkingConfig) {
+    generationConfig.thinkingConfig = opts.enableThinking
+      ? { includeThoughts: true }
+      : { thinkingBudget: 0 };
+  }
+  const body = { contents, generationConfig };
   if (system) body["systemInstruction"] = { parts: [{ text: system }] };
   return fetch(url, {
     method: "POST",
@@ -46,10 +44,20 @@ const callGemini = async (config, messages, opts) => {
   });
 };
 
+const noThinkingModels = new Set();
+
 export const streamGemini = async function* (config, messages, opts) {
   let res;
   try {
-    res = await callGemini(config, messages, opts);
+    const withThinkingConfig = !noThinkingModels.has(config.model);
+    res = await callGemini(config, messages, opts, withThinkingConfig);
+    if (withThinkingConfig && res.status === 400) {
+      const text = await res.clone().text().catch(() => "");
+      if (/thinking/i.test(text)) {
+        noThinkingModels.add(config.model);
+        res = await callGemini(config, messages, opts, false);
+      }
+    }
   } catch (err) {
     console.warn(LOG_NS, "request failed", err);
     yield { kind: ChunkKind.Error, message: "AI request failed" };
