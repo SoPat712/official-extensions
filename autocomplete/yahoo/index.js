@@ -1,3 +1,5 @@
+const REGION_BY_LANG = { pt: "br", es: "mx", hi: "in" };
+
 export default class YahooAutocompleteProvider {
   isClientExposed = false;
   name = "Yahoo Autocomplete";
@@ -5,9 +7,8 @@ export default class YahooAutocompleteProvider {
   async getSuggestions(query, context) {
     if (!query || !query.trim()) return [];
     const doFetch = context?.fetch ?? fetch;
-    const lang = context?.lang ?? "en";
     const encoded = encodeURIComponent(query.trim());
-    const region = lang === "en" ? "us" : lang;
+    const region = REGION_BY_LANG[context?.lang] ?? "us";
     try {
       const res = await doFetch(
         `https://search.yahoo.com/sugg/gossip/gossip-${region}-ura/?command=${encoded}&output=json`,

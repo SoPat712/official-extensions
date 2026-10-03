@@ -535,7 +535,7 @@
       "path": "autocomplete/google",
       "name": "Google Autocomplete",
       "description": "Suggestions from Google.",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "minDegoogVersion": "0.19.0",
       "legacyIds": [
         "autocomplete-builtin-google",
@@ -569,7 +569,7 @@
       "path": "autocomplete/yahoo",
       "name": "Yahoo Autocomplete",
       "description": "Suggestions from Yahoo Search.",
-      "version": "1.1.0"
+      "version": "1.1.1"
     },
     {
       "path": "autocomplete/qwant",
