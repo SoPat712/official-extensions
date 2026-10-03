@@ -28,10 +28,9 @@ export default class GoogleAutocompleteProvider {
 
     try {
       if (this.richEnabled) {
-        const url = `https://www.google.com/complete/search?q=${encoded}&client=gws-wiz&xssi=t&hl=${context?.lang || "en"}`;
+        const url = `https://www.google.com/complete/search?q=${encoded}&client=gws-wiz&xssi=t&ie=utf-8&oe=utf-8&hl=${context?.lang || "en"}`;
         const res = await doFetch(url);
-        const buf = await res.arrayBuffer();
-        let text = new TextDecoder("iso-8859-1").decode(buf);
+        let text = await res.text();
         if (text.startsWith(")]}'")) text = text.substring(4);
         const data = JSON.parse(text);
         const items = data[0] || [];
@@ -47,10 +46,9 @@ export default class GoogleAutocompleteProvider {
           return Object.keys(rich).length > 0 ? { text: raw, rich } : raw;
         });
       }
-      const url = `https://suggestqueries.google.com/complete/search?client=firefox&q=${encoded}`;
+      const url = `https://suggestqueries.google.com/complete/search?client=firefox&ie=utf-8&oe=utf-8&q=${encoded}`;
       const res = await doFetch(url);
-      const buf = await res.arrayBuffer();
-      const text = new TextDecoder("iso-8859-1").decode(buf);
+      const text = await res.text();
       return JSON.parse(text)[1] ?? [];
     } catch {
       return [];
