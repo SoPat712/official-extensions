@@ -75,7 +75,7 @@ const _imgUrl = (path, size) => {
   if (!p) return "";
 
   const url = `${IMAGE_BASE}/${size}${p.startsWith("/") ? p : "/" + p}`;
-  return _signProxy ? _signProxy(url) : url;
+  return _signProxy ? _signProxy(url) : "";
 };
 
 const _render = (data) => {

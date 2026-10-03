@@ -81,13 +81,21 @@ const _isInterstitial = (html) => {
   return MUTANT_SIGNATURES.some((m) => head.includes(m));
 };
 
+const GOTO_PREFIX = "/goto?";
+const GOTO_ORIGIN = "https://www.google.com";
+const GOTO_TIMEOUT_MS = 5000;
+
+const _isExternal = (url) => url.startsWith("http") && !url.includes("google.com");
+
 const _parseDesktop = ($, name) => {
   const results = [];
   const seen = new Set();
   $("a:has(h3)").each((_, el) => {
     const linkEl = $(el);
-    const url = _resolveHref(linkEl.attr("href") || "");
-    if (!url.startsWith("http") || url.includes("google.com")) return;
+    const href = linkEl.attr("href") || "";
+    const goto = href.startsWith(GOTO_PREFIX) ? `${GOTO_ORIGIN}${href}` : "";
+    const url = goto || _resolveHref(href);
+    if (!goto && !_isExternal(url)) return;
     const title = linkEl.find("h3").first().text().trim();
     if (!title || seen.has(url)) return;
     seen.add(url);
@@ -101,11 +109,43 @@ const _parseDesktop = ($, name) => {
       url,
       snippet,
       source: name,
-      thumbnail: _ytThumbnail(url),
+      thumbnail: goto ? "" : _ytThumbnail(url),
       duration: block.length ? _durationFromScope($, block) : "",
     });
   });
   return results;
+};
+
+const _followGoto = async (url, userAgent) => {
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      redirect: "manual",
+      headers: { "User-Agent": userAgent },
+      signal: AbortSignal.timeout(GOTO_TIMEOUT_MS),
+    });
+    await response.body?.cancel();
+    const location = response.headers.get("location") || "";
+    return _isExternal(location) ? location : "";
+  } catch {
+    return "";
+  }
+};
+
+const _resolveGotos = async (results, userAgent) => {
+  const resolved = await Promise.all(
+    results.map(async (result) => {
+      if (!result.url.startsWith(GOTO_ORIGIN)) return result;
+      const url = await _followGoto(result.url, userAgent);
+      return { ...result, url, thumbnail: _ytThumbnail(url) };
+    }),
+  );
+  const seen = new Set();
+  return resolved.filter((result) => {
+    if (!result.url || seen.has(result.url)) return false;
+    seen.add(result.url);
+    return true;
+  });
 };
 
 export default class GoogleVideosEngine {
@@ -204,7 +244,7 @@ export default class GoogleVideosEngine {
       throw new Error(`${this.name} returned a JavaScript/consent interstitial`);
     }
 
-    return _parseDesktop(cheerio.load(html), this.name);
+    return _resolveGotos(_parseDesktop(cheerio.load(html), this.name), userAgent);
   }
 
   async _searchLite(query, page = 1, timeFilter, context) {

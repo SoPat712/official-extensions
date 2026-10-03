@@ -200,7 +200,7 @@ export const slot = {
       const stars = _formatCount(data.stargazers_count);
       const lang = _esc(data.language || "");
       const href = _esc(data.html_url || `https://github.com/${owner}/${repo}`);
-      const avatarUrl = data.owner && data.owner.avatar_url ? _esc(data.owner.avatar_url) : "";
+      const avatarUrl = data.owner && data.owner.avatar_url && context?.signProxyUrl ? _esc(context.signProxyUrl(data.owner.avatar_url)) : "";
       const avatarHtml = avatarUrl
         ? `<img src="${avatarUrl}" alt="" class="gh-slot-avatar-img" loading="lazy">`
         : `<span class="gh-slot-avatar-placeholder">${_esc((owner || "?").charAt(0))}</span>`;
@@ -225,7 +225,7 @@ export const slot = {
       const name = _esc(data.name || data.login);
       const bio = _esc((data.bio || "").slice(0, 120));
       const href = _esc(data.html_url || `https://github.com/${login}`);
-      const avatarUrl = data.avatar_url ? _esc(data.avatar_url) : "";
+      const avatarUrl = data.avatar_url && context?.signProxyUrl ? _esc(context.signProxyUrl(data.avatar_url)) : "";
       const avatarHtml = avatarUrl
         ? `<img src="${avatarUrl}" alt="" class="gh-slot-avatar-img" loading="lazy">`
         : `<span class="gh-slot-avatar-placeholder">${_esc((data.login || "?").charAt(0))}</span>`;

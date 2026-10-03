@@ -1,4 +1,5 @@
 let meiliUrl = "";
+let _signProxyUrl = null;
 let apiKey = "";
 let indexes = [];
 let titleField = "title";
@@ -146,6 +147,7 @@ export default {
   ],
 
   async init(ctx) {
+    if (ctx.signProxyUrl) _signProxyUrl = ctx.signProxyUrl;
     template = ctx.template;
     resultItemTpl = await ctx.readFile("result.html");
   },
@@ -240,7 +242,7 @@ export default {
         const thumbUrl =
           rawThumb && context?.signProxyUrl
             ? context.signProxyUrl(rawThumb)
-            : rawThumb;
+            : "";
         const source = String(hit["source"] || "");
         const type = String(hit["type"] || "");
 
@@ -257,7 +259,7 @@ export default {
           _renderItem(resultItemTpl, {
             index: String(rowIndex++),
             thumbnail_block: _thumbnailBlock(thumbUrl),
-            favicon_url: escHtml(MEILISEARCH_LOGO),
+            favicon_url: escHtml(_signProxyUrl ? _signProxyUrl(MEILISEARCH_LOGO) : ""),
             favicon_host: escHtml(host),
             cite_url: escHtml(citeDisp),
             url: escHtml(url),

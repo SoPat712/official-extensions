@@ -3,6 +3,7 @@ import { createThumbCache } from "./thumb-cache.js";
 const thumb = createThumbCache();
 
 let rommUrl = "";
+let _signProxyUrl = null;
 let apiToken = "";
 let username = "";
 let password = "";
@@ -135,7 +136,7 @@ function renderCard(item, index, thumbSrc) {
   const data = {
     index: String(index),
     thumbnail_block: thumbSrc ? _thumbnailBlock(thumbSrc) : "",
-    favicon_url: escHtml(ROMM_LOGO),
+    favicon_url: escHtml(_signProxyUrl ? _signProxyUrl(ROMM_LOGO) : ""),
     favicon_host: escHtml(host),
     cite_url: escHtml(cite),
     url: escHtml(`${rommUrl}/rom/${romId}`),
@@ -194,6 +195,7 @@ export default {
   routes: [thumb.route],
 
   async init(ctx) {
+    if (ctx.signProxyUrl) _signProxyUrl = ctx.signProxyUrl;
     thumb.useApiBase(ctx.apiBase);
     template = ctx.template;
     resultItemTpl = await ctx.readFile("result.html");

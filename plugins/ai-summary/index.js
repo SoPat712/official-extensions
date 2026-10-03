@@ -130,7 +130,7 @@ export const slot = {
     if (results.length === 0) return { html: "" };
     if (!_settings.model) return { html: "" };
     if (_settings.questionMarkOnly && !query.trim().endsWith("?")) return { html: "" };
-    const sources = buildSources(results);
+    const sources = buildSources(results, context?.signFaviconUrl);
     return { html: buildPanelHtml(this.t, query.trim(), sources, _settings.hideOnError, _settings.enableInputStyling) };
   },
 

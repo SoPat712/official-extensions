@@ -21,12 +21,6 @@
     return el.innerHTML;
   };
   
-  if (!document.querySelector("link[href*=\"tabler-icons\"]")) {
-    var link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = "https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.40.0/dist/tabler-icons.min.css";
-    document.head.appendChild(link);
-  }
 
   function handleDayClick(row) {
     const container = row.closest(".weather-result");
@@ -69,7 +63,7 @@
       const card = document.createElement("div");
       card.className = "weather-hour-card";
       const precip = (h.precip && h.precip !== "—") ? "<span class=\"weather-hour-precip\">" + _escapeHtml(h.precip) + " " + _escapeHtml(t("plugin-weather.script.mmSuffix")) + "</span>" : "";
-      card.innerHTML = "<span class=\"weather-hour-time\">" + _escapeHtml(h.time) + "</span><i class=\"ti " + _escapeHtml(h.icon || "ti-cloud") + " weather-hour-icon\"></i><span class=\"weather-hour-temp\">" + _escapeHtml(h.temp) + "°</span>" + precip;
+      card.innerHTML = "<span class=\"weather-hour-time\">" + _escapeHtml(h.time) + "</span><i class=\"ti fa-solid " + _escapeHtml(h.icon || "fa-cloud") + " weather-hour-icon\"></i><span class=\"weather-hour-temp\">" + _escapeHtml(h.temp) + "°</span>" + precip;
       strip.appendChild(card);
     }
 

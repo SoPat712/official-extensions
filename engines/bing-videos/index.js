@@ -2,14 +2,18 @@ import * as cheerio from "cheerio";
 
 const FALLBACK_UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36";
 
-const _bingMkt = (lang, buildAL) => {
-  if (lang.includes("-")) return lang;
-  const al = buildAL?.();
-  if (al) {
-    const primary = al.split(",")[0].split(";")[0].trim();
-    if (primary.includes("-")) return primary;
+const JUNK_CC = new Set(["us", "cn", "ru"]);
+
+const _bingLocale = (lang, buildAL) => {
+  let tag = lang;
+  if (!tag.includes("-")) {
+    const primary = buildAL?.()?.split(",")[0].split(";")[0].trim();
+    if (primary?.toLowerCase().startsWith(`${lang.toLowerCase()}-`)) tag = primary;
   }
-  return lang;
+  const [setlang, cc] = tag.toLowerCase().split("-");
+  let qs = `&setlang=${encodeURIComponent(setlang)}`;
+  if (cc && !JUNK_CC.has(cc)) qs += `&cc=${encodeURIComponent(cc)}`;
+  return qs;
 };
 
 const _parseMmeta = (raw) => {
@@ -56,7 +60,7 @@ export default class BingVideosEngine {
     const first = (page - 1) * pageSize;
     const lang = context?.lang;
     let url = `https://www.bing.com/videos/search?q=${encodeURIComponent(query)}&count=${pageSize}&first=${first}&FORM=HDRSC3`;
-    if (lang) url += `&setlang=${lang}&mkt=${_bingMkt(lang, context?.buildAcceptLanguage)}`;
+    if (lang) url += _bingLocale(lang, context?.buildAcceptLanguage);
     const adlt = this.safeSearch === "strict" || this.safeSearch === "moderate" ? this.safeSearch : "off";
     if (adlt !== "off") url += `&adlt=${adlt}`;
     const adltCookie = { strict: "STRICT", moderate: "DEMOTE", off: "OFF" }[adlt] ?? "OFF";

@@ -44,22 +44,9 @@ const _refreshApps = () => {
   return inflight;
 };
 
-const _resolveIcon = (raw) => {
-  if (!raw) return "";
-  const s = String(raw).trim();
-  if (!s) return "";
-  if (/^(https?:)?\/\//i.test(s) || s.startsWith("/") || s.startsWith("data:"))
-    return s;
-  if (s.toLowerCase().startsWith("sh-")) {
-    const name = encodeURIComponent(s.slice(3));
-    return `https://cdn.jsdelivr.net/gh/selfhst/icons/png/${name}.png`;
-  }
-  return `https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/${encodeURIComponent(s)}.png`;
-};
-
 const _tileHtml = (app) => {
   const fallback = (app.label || "?").trim().slice(0, 1).toUpperCase();
-  const iconUrl = _resolveIcon(app.icon);
+  const iconUrl = typeof app.icon === "string" ? app.icon : "";
   const iconHtml = iconUrl
     ? `<img class="apps-pocket-tile-img" src="${_escapeHtml(iconUrl)}" alt="" loading="lazy" data-fb="${_escapeHtml(fallback)}"/>`
     : `<span class="apps-pocket-tile-fallback">${_escapeHtml(fallback)}</span>`;

@@ -9,6 +9,7 @@ import {
   LMSTUDIO_DEFAULT_BASE,
   OPENAI_DEFAULT_BASE,
   OPENROUTER_DEFAULT_BASE,
+  PERPLEXITY_PRESETS,
   ProviderId,
   VLLM_DEFAULT_BASE,
 } from "./types.js";
@@ -103,11 +104,30 @@ const fromAnthropic = async (providerId, config) => {
     .map((entry) => ({ value: entry.id, label: entry.display_name || entry.id }));
 };
 
+const perplexityModels = async (config) => {
+  const endpoint = (config.baseUrl ?? "").trim().replace(/\/+$/, "");
+  if (!endpoint) return [];
+  const data = await askJson(new URL("models", endpoint).href, bearer(config.apiKey), config);
+  return (data?.data ?? [])
+    .filter((entry) => typeof entry?.id === "string")
+    .map((entry) => ({ value: entry.id, label: entry.name || entry.id }));
+};
+
+const fromPerplexity = async (providerId, config) => {
+  const models = await perplexityModels(config).catch((err) => {
+    console.warn(LOG_NS, `listing failed for ${providerId}`, err?.message || err);
+    return [];
+  });
+  const presets = PERPLEXITY_PRESETS.map((id) => ({ value: id, label: `Preset: ${id}` }));
+  return [...presets, ...models];
+};
+
 const LISTERS = {
   [ProviderId.Ollama]: fromOllama,
   [ProviderId.LmStudio]: fromLmStudio,
   [ProviderId.Gemini]: fromGemini,
   [ProviderId.Anthropic]: fromAnthropic,
+  [ProviderId.Perplexity]: fromPerplexity,
 };
 
 export const listModels = async (providerId, config) => {

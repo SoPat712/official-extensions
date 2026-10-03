@@ -78,7 +78,7 @@ export const settingsSchema = [
     type: "url",
     placeholder: "https://api.openai.com/v1",
     description:
-      "Provider base URL. Examples: `https://api.openai.com/v1`, `https://openrouter.ai/api/v1`, `http://localhost:11434` for Ollama, `http://localhost:8080/v1` for llama.cpp, `http://localhost:8000/v1` for vLLM, or `http://localhost:1234/v1` for LM Studio. Native providers fill the standard default when blank.",
+      "Provider base URL. Examples: `https://api.openai.com/v1`, `https://openrouter.ai/api/v1`, `http://localhost:11434` for Ollama, `http://localhost:8080/v1` for llama.cpp, `http://localhost:8000/v1` for vLLM, `http://localhost:1234/v1` for LM Studio, or the full endpoint `https://api.perplexity.ai/v1/responses` for Perplexity. Native providers fill the standard default when blank, except Perplexity, which needs it set.",
   },
   {
     key: "apiKey",
@@ -87,7 +87,7 @@ export const settingsSchema = [
     secret: true,
     placeholder: "Leave blank for local models (Ollama)",
     description:
-      "Get one from [OpenAI](https://platform.openai.com/api-keys), [Google AI Studio](https://aistudio.google.com/apikey), or [Anthropic](https://console.anthropic.com/settings/keys). Not needed for local Ollama.",
+      "Get one from [OpenAI](https://platform.openai.com/api-keys), [Google AI Studio](https://aistudio.google.com/apikey), [Anthropic](https://console.anthropic.com/settings/keys), or [Perplexity](https://console.perplexity.ai). Not needed for local Ollama.",
   },
   {
     key: "provider",
@@ -116,7 +116,7 @@ export const settingsSchema = [
       emptyHint: "Fetch models to list what this endpoint serves, or type any model id.",
     },
     description:
-      "Model id. Lists: [OpenAI](https://platform.openai.com/docs/models), [Gemini](https://ai.google.dev/gemini-api/docs/models), [Anthropic](https://docs.anthropic.com/en/docs/about-claude/models). For Ollama/vLLM use whatever you have served. Reasoning models work; their thoughts stream live and clear when the answer starts.",
+      "Model id. Lists: [OpenAI](https://platform.openai.com/docs/models), [Gemini](https://ai.google.dev/gemini-api/docs/models), [Anthropic](https://docs.anthropic.com/en/docs/about-claude/models). Perplexity takes `provider/model` ids like `openai/gpt-5.6-sol`, or a preset: `fast`, `low`, `medium`, `high`, `xhigh`. For Ollama/vLLM use whatever you have served. Reasoning models work; their thoughts stream live and clear when the answer starts.",
   },
   {
     key: "tokenLimitParam",
@@ -126,7 +126,7 @@ export const settingsSchema = [
     optionLabels: ["max_tokens (default)", "max_completion_tokens (newer OpenAI models)"],
     default: TokenParam.MaxTokens,
     description:
-      "Which field carries the token cap on OpenAI-style APIs. Newer OpenAI reasoning models reject `max_tokens` and answer with *Unsupported parameter*; switch to `max_completion_tokens` for those. Ignored by Gemini, Anthropic and Ollama, which have their own field.",
+      "Which field carries the token cap on OpenAI-style APIs. Newer OpenAI reasoning models reject `max_tokens` and answer with *Unsupported parameter*; switch to `max_completion_tokens` for those. Ignored by Gemini, Anthropic, Perplexity and Ollama, which have their own field.",
   },
   {
     key: "extraHeaders",

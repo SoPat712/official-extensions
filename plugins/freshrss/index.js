@@ -21,6 +21,7 @@ let _category = "";
 let _unreadOnly = false;
 let _showOnDesktop = false;
 let _signProxyUrl = null;
+let _signFaviconUrl = null;
 let _template = "";
 let _cardTpl = "";
 
@@ -67,14 +68,7 @@ const _cleanUrl = (url) => {
   }
 };
 
-const _faviconUrl = (url) => {
-  try {
-    const hostname = new URL(url).hostname;
-    return `/api/proxy/favicon?domain=${encodeURIComponent(hostname)}`;
-  } catch {
-    return "";
-  }
-};
+const _faviconUrl = (url) => (_signFaviconUrl ? _signFaviconUrl(url) : "");
 
 const _proxyImg = (url) => {
   if (!url || !_signProxyUrl) return "";
@@ -178,7 +172,7 @@ const _renderItem = (item) => {
   if (dateStr)
     badges += `<span class="rss-result-date">${_esc(dateStr)}</span>`;
   const data = {
-    faviconSrc: _faviconUrl(item.url),
+    faviconSrc: _esc(_faviconUrl(item.url)),
     cite: _esc(_cleanUrl(item.url)),
     itemUrl: _esc(item.url),
     title: _esc(item.title),
@@ -203,6 +197,7 @@ const _toResultItem = (item) => ({
   snippet: item.description,
   source: item.source,
   thumbnail: _proxyImg(item.thumbnail),
+  favicon: _faviconUrl(item.url),
   pubDate: item.pubDate ? new Date(item.pubDate * 1000).toISOString() : null,
 });
 
@@ -290,6 +285,7 @@ const slot = {
     _template = ctx.template;
     _cardTpl = await ctx.readFile("card.html");
     if (ctx.signProxyUrl) _signProxyUrl = ctx.signProxyUrl;
+    if (ctx.signFaviconUrl) _signFaviconUrl = ctx.signFaviconUrl;
   },
 
   configure(settings) {

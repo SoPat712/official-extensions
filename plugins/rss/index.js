@@ -2,6 +2,7 @@
 const cheerio = require("cheerio");
 
 let _signProxyUrl = null;
+let _signFaviconUrl = null;
 
 let template = "";
 let cardTemplate = "";
@@ -295,14 +296,7 @@ const _cleanUrl = (url) => {
   }
 };
 
-const _faviconUrl = (url) => {
-  try {
-    const hostname = new URL(url).hostname;
-    return `/api/proxy/favicon?domain=${encodeURIComponent(hostname)}`;
-  } catch {
-    return "";
-  }
-};
+const _faviconUrl = (url) => (_signFaviconUrl ? _signFaviconUrl(url) : "");
 
 const _proxyImageUrl = (url) => {
   if (!url || !_signProxyUrl) return "";
@@ -317,7 +311,7 @@ const _renderResultItem = (item) => {
   let badges = `<span class="result-engine-tag">${_esc(item.source)}</span>`;
   if (dateStr) badges += `<span class="rss-result-date">${_esc(dateStr)}</span>`;
   const data = {
-    faviconSrc: _faviconUrl(item.url),
+    faviconSrc: _esc(_faviconUrl(item.url)),
     cite: _esc(_cleanUrl(item.url)),
     itemUrl: _esc(item.url),
     title: _esc(item.title),
@@ -342,6 +336,7 @@ const _serializeItem = (item) => {
     snippet: item.description,
     source: item.source,
     thumbnail: _proxyImageUrl(item.thumbnail),
+    favicon: _faviconUrl(item.url),
     pubDate: item.pubDate ? item.pubDate.toISOString() : null,
   };
 }
@@ -378,6 +373,7 @@ const slot = {
     template = ctx.template;
     cardTemplate = await ctx.readFile("card.html");
     if (ctx.signProxyUrl) _signProxyUrl = ctx.signProxyUrl;
+    if (ctx.signFaviconUrl) _signFaviconUrl = ctx.signFaviconUrl;
   },
 
   configure(settings) {
