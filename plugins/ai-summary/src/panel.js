@@ -15,13 +15,14 @@ const hostname = (url) => {
 const escapeHtml = (s) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-export const buildSources = (results) =>
+export const buildSources = (results, signFaviconUrl) =>
   results.slice(0, MAX_SOURCES).map((r, i) => ({
     index: i + 1,
     title: r.title || "",
     url: r.url,
     snippet: r.snippet || "",
     host: hostname(r.url),
+    favicon: signFaviconUrl ? signFaviconUrl(r.url) : "",
   }));
 
 export const buildUserPrompt = (query, sources) => {
@@ -40,22 +41,22 @@ export const summaryCacheKey = (query, results) => {
   return `${query.trim().toLowerCase()}|${hash}`;
 };
 
-const iconHtml = (host, cls, size) =>
-  host
-    ? `<img class="${cls}" data-favicon-host="${escapeHtml(host)}" alt="" width="${size}" height="${size}" loading="lazy">`
+const iconHtml = (favicon, cls, size) =>
+  favicon
+    ? `<img class="${cls}" src="${escapeHtml(favicon)}" alt="" width="${size}" height="${size}" loading="lazy">`
     : "";
 
 const stackHtml = (sources) =>
   sources
-    .filter((s) => s.host)
+    .filter((s) => s.favicon)
     .slice(0, STACK_LIMIT)
-    .map((s) => iconHtml(s.host, "glance-ai-stack-icon", 18))
+    .map((s) => iconHtml(s.favicon, "glance-ai-stack-icon", 18))
     .join("");
 
 const railCard = (s) =>
   `<a class="glance-ai-rail-card" href="${escapeHtml(s.url)}" target="_blank" rel="noopener">` +
   '<span class="glance-ai-rail-head">' +
-  iconHtml(s.host, "glance-ai-rail-icon", 14) +
+  iconHtml(s.favicon, "glance-ai-rail-icon", 14) +
   `<span class="glance-ai-rail-host">${escapeHtml(s.host || s.url)}</span>` +
   "</span>" +
   `<span class="glance-ai-rail-title">${escapeHtml(s.title || s.host || s.url)}</span>` +
@@ -89,7 +90,7 @@ export const sourcesHtml = (t, sources) => {
 
 export const buildPanelHtml = (t, query, sources, hideOnError, enableInputStyling) => {
   const sourcesJson = JSON.stringify(
-    sources.map((s) => ({ i: s.index, u: s.url, t: s.title, h: s.host, s: s.snippet })),
+    sources.map((s) => ({ i: s.index, u: s.url, t: s.title, h: s.host, s: s.snippet, f: s.favicon })),
   );
   const inputWrapClass = enableInputStyling
     ? "glance-ai-input-wrap glance-ai-input-wrap--styled"

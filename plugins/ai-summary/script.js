@@ -6,8 +6,6 @@
   const SUMMARY_URL = `${API_BASE}/stream`;
   const CHAT_URL = `${API_BASE}/chat`;
   const MAX_SOURCES = 6;
-  const BASE_URL = window.__DEGOOG_BASE_URL__ ?? "";
-  const FAVICON_ENDPOINT = `${BASE_URL}/api/proxy/favicon`;
   const CITE_GROUP = "\\[[ \\t]*N?\\d+(?:[,\\s]*N?\\d+)*[ \\t]*\\]";
   const CITE_RUN_RE = new RegExp(`${CITE_GROUP}(?:[ \\t]*,?[ \\t]*${CITE_GROUP})*`, "g");
   const HIGHLIGHT_MAX = 200;
@@ -45,19 +43,22 @@
     }
   };
 
-  const faviconFor = (url) => {
-    const host = hostOf(url);
-    return host ? `${FAVICON_ENDPOINT}?domain=${encodeURIComponent(host)}` : "";
-  };
+  const faviconHtml = (src) =>
+    src.f
+      ? `<img class="glance-ai-cite-favicon" src="${escapeHtml(src.f)}" alt="" width="14" height="14">`
+      : "";
 
   const hostLabel = (src) => src.h || hostOf(src.u) || src.u;
 
+  const ICON_SELECTOR = ".glance-ai-stack-icon, .glance-ai-rail-icon, .glance-ai-cite-favicon";
+
+  const dropBrokenIcon = (e) => {
+    if (e.target instanceof HTMLImageElement && e.target.matches(ICON_SELECTOR)) e.target.remove();
+  };
+
   const hydrateIcons = (root) => {
-    root.querySelectorAll("img[data-favicon-host]").forEach((img) => {
-      const host = img.dataset.faviconHost;
-      if (!host) return;
-      img.onerror = () => img.remove();
-      img.src = `${FAVICON_ENDPOINT}?domain=${encodeURIComponent(host)}`;
+    root.querySelectorAll(ICON_SELECTOR).forEach((img) => {
+      if (img.complete && img.naturalWidth === 0) img.remove();
     });
   };
 
@@ -79,11 +80,10 @@
   const citeChip = (picked) => {
     const head = picked[0];
     const extra = picked.length - 1;
-    const fav = faviconFor(head.u);
     return (
       '<button type="button" class="glance-ai-cite" ' +
       `data-cite-ns="${picked.map((s) => s.i).join(",")}">` +
-      (fav ? `<img class="glance-ai-cite-favicon" src="${escapeHtml(fav)}" alt="" width="14" height="14">` : "") +
+      faviconHtml(head) +
       `<span class="glance-ai-cite-host">${escapeHtml(hostLabel(head))}</span>` +
       (extra > 0 ? `<span class="glance-ai-cite-more">+${extra}</span>` : "") +
       "</button>"
@@ -428,11 +428,10 @@
   };
 
   const srcRow = (src) => {
-    const fav = faviconFor(src.u);
     return (
       `<a class="glance-ai-pop-row" href="${escapeHtml(src.u)}" target="_blank" rel="noopener">` +
       '<span class="glance-ai-pop-head">' +
-      (fav ? `<img class="glance-ai-cite-favicon" src="${escapeHtml(fav)}" alt="" width="14" height="14">` : "") +
+      faviconHtml(src) +
       `<span class="glance-ai-pop-host">${escapeHtml(hostLabel(src))}</span>` +
       "</span>" +
       (src.t ? `<span class="glance-ai-pop-title">${escapeHtml(src.t)}</span>` : "") +
@@ -467,6 +466,9 @@
     popEl.classList.toggle("glance-ai-pop--pinned", !!pinned);
     requestAnimationFrame(() => placePop(cite));
   };
+
+  glanceEl.addEventListener("error", dropBrokenIcon, true);
+  popEl.addEventListener("error", dropBrokenIcon, true);
 
   glanceEl.addEventListener("mouseover", (e) => {
     if (pinnedCite) return;

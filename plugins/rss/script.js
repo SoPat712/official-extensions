@@ -42,15 +42,6 @@
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
-  const faviconUrl = (url) => {
-    try {
-      var hostname = new URL(url).hostname;
-      return "/api/proxy/favicon?domain=" + encodeURIComponent(hostname);
-    } catch {
-      return "";
-    }
-  };
-
   const skeletonCards = (count) => {
     var html = '<div class="skeleton-feed" aria-hidden="true">';
     for (var i = 0; i < count; i++) {
@@ -66,9 +57,11 @@
       ? '<img class="home-feed-card-img" src="' +
         escapeHtml(item.thumbnail || "") +
         '" alt="" loading="lazy" onerror="this.parentElement.querySelector(\'.home-feed-card-img\')?.remove()">'
-      : '<div class="home-feed-card-favicon-wrap"><img class="home-feed-card-favicon" src="' +
-        escapeHtml(faviconUrl(item.url)) +
-        '" alt="" loading="lazy" onerror="this.parentElement.remove()"></div>';
+      : item.favicon
+        ? '<div class="home-feed-card-favicon-wrap"><img class="home-feed-card-favicon" src="' +
+          escapeHtml(item.favicon) +
+          '" alt="" loading="lazy" onerror="this.parentElement.remove()"></div>'
+        : "";
     var source = escapeHtml(item.source || cleanHostname(item.url));
     var dateStr = formatDate(item.pubDate);
     var datePart = dateStr

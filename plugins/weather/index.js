@@ -16,17 +16,17 @@ const WEATHER_CODES = {
 const WIND_DIRECTIONS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
 
 const _weatherIcon = (code) => {
-  if (code == null) return "ti-cloud";
+  if (code == null) return "fa-cloud";
   const c = Number(code);
-  if (c <= 1) return "ti-sun";
-  if (c === 2) return "ti-cloud";
-  if (c === 3 || c === 45 || c === 48) return "ti-cloud";
-  if (c >= 51 && c <= 57) return "ti-droplet";
-  if ((c >= 61 && c <= 67) || (c >= 80 && c <= 82)) return "ti-cloud-rain";
-  if ((c >= 71 && c <= 77) || c === 85 || c === 86) return "ti-snowflake";
-  if (c >= 95) return "ti-cloud-storm";
+  if (c <= 1) return "fa-sun";
+  if (c === 2) return "fa-cloud";
+  if (c === 3 || c === 45 || c === 48) return "fa-cloud";
+  if (c >= 51 && c <= 57) return "fa-droplet";
+  if ((c >= 61 && c <= 67) || (c >= 80 && c <= 82)) return "fa-cloud-rain";
+  if ((c >= 71 && c <= 77) || c === 85 || c === 86) return "fa-snowflake";
+  if (c >= 95) return "fa-cloud-bolt";
 
-  return "ti-cloud";
+  return "fa-cloud";
 };
 
 const _windDirection = (deg) => {
@@ -178,7 +178,7 @@ export default {
         const high = daily.temperature_2m_max?.[i] != null ? `${Math.round(daily.temperature_2m_max[i])}${dailyUnits.temperature_2m_max || "°"}` : "—";
         const low = daily.temperature_2m_min?.[i] != null ? `${Math.round(daily.temperature_2m_min[i])}${dailyUnits.temperature_2m_min || "°"}` : "—";
         const precipPct = daily.precipitation_probability_max?.[i] != null ? `${Math.round(daily.precipitation_probability_max[i])}%` : "—";
-        weekRows += `<tr class="weather-week-row" data-day-index="${i}" role="button" tabindex="0"><td class="weather-day">${dayName}</td><td class="weather-day-icon"><i class="ti ${iconClass}"></i></td><td class="weather-day-temps">${high} / ${low}</td><td class="weather-day-precip"><i class="ti ti-droplet"></i> ${precipPct}</td></tr>`;
+        weekRows += `<tr class="weather-week-row" data-day-index="${i}" role="button" tabindex="0"><td class="weather-day">${dayName}</td><td class="weather-day-icon"><i class="ti fa-solid ${iconClass}"></i></td><td class="weather-day-temps">${high} / ${low}</td><td class="weather-day-precip"><i class="ti fa-solid fa-droplet"></i> ${precipPct}</td></tr>`;
       }
 
       const todaySunrise = _formatTime(daily.sunrise?.[0]);

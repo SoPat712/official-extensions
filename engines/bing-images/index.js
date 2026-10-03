@@ -3,14 +3,18 @@ import * as cheerio from "cheerio";
 const FALLBACK_UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36";
 const ASYNC_PAGE_SIZE = 35;
 
-const _bingMkt = (lang, buildAL) => {
-  if (lang.includes("-")) return lang;
-  const al = buildAL?.();
-  if (al) {
-    const primary = al.split(",")[0].split(";")[0].trim();
-    if (primary.includes("-")) return primary;
+const JUNK_CC = new Set(["us", "cn", "ru"]);
+
+const _bingLocale = (lang, buildAL) => {
+  let tag = lang;
+  if (!tag.includes("-")) {
+    const primary = buildAL?.()?.split(",")[0].split(";")[0].trim();
+    if (primary?.toLowerCase().startsWith(`${lang.toLowerCase()}-`)) tag = primary;
   }
-  return lang;
+  const [setlang, cc] = tag.toLowerCase().split("-");
+  let qs = `&setlang=${encodeURIComponent(setlang)}`;
+  if (cc && !JUNK_CC.has(cc)) qs += `&cc=${encodeURIComponent(cc)}`;
+  return qs;
 };
 
 const SIZE_MAP = { small: "Small", medium: "Medium", large: "Large", wallpaper: "Wallpaper" };
@@ -58,8 +62,8 @@ export default class BingImagesEngine {
   async executeSearch(query, page = 1, timeFilter, context) {
     const first = (page - 1) * ASYNC_PAGE_SIZE;
     const lang = context?.lang;
-    let url = `https://www.bing.com/images/async?q=${encodeURIComponent(query)}&async=content&count=${ASYNC_PAGE_SIZE}&first=${first}`;
-    if (lang) url += `&setlang=${lang}&mkt=${_bingMkt(lang, context?.buildAcceptLanguage)}`;
+    let url = `https://www.bing.com/images/async?q=${encodeURIComponent(query)}&mmasync=1&count=${ASYNC_PAGE_SIZE}&first=${first + 1}`;
+    if (lang) url += _bingLocale(lang, context?.buildAcceptLanguage);
     const nsfw = context?.imageFilter?.nsfw;
     let adlt = this.safeSearch === "strict" || this.safeSearch === "moderate" ? this.safeSearch : "off";
     if (nsfw === "on") adlt = "strict";

@@ -1,4 +1,19 @@
 let apps = [];
+let _signProxyUrl = null;
+
+const _resolveIcon = (raw) => {
+  const s = typeof raw === "string" ? raw.trim() : "";
+  if (!s) return "";
+  if (s.startsWith("data:image/")) return s;
+  if (s.startsWith("/") && !s.startsWith("//")) return s;
+  const proxy = (url) => (_signProxyUrl ? _signProxyUrl(url) : "");
+  if (/^https?:\/\//i.test(s)) return proxy(s);
+  if (s.startsWith("//")) return proxy(`https:${s}`);
+  if (s.toLowerCase().startsWith("sh-")) {
+    return proxy(`https://cdn.jsdelivr.net/gh/selfhst/icons/png/${encodeURIComponent(s.slice(3))}.png`);
+  }
+  return proxy(`https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/${encodeURIComponent(s)}.png`);
+};
 
 const _normalizeApps = (input) => {
   if (!Array.isArray(input)) return [];
@@ -55,6 +70,10 @@ export default {
     },
   ],
 
+  init(ctx) {
+    if (ctx.signProxyUrl) _signProxyUrl = ctx.signProxyUrl;
+  },
+
   configure(settings) {
     const raw =
       typeof settings?.appsJson === "string" ? settings.appsJson.trim() : "";
@@ -78,7 +97,8 @@ export default {
     {
       method: "get",
       path: "/apps",
-      handler: async () => _json({ apps }),
+      handler: async () =>
+        _json({ apps: apps.map((app) => ({ ...app, icon: _resolveIcon(app.icon) })) }),
     },
   ],
 };

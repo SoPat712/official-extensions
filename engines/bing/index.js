@@ -15,14 +15,18 @@ const _decodeUrl = (href) => {
   }
 };
 
-const _bingMkt = (lang, buildAL) => {
-  if (lang.includes("-")) return lang;
-  const al = buildAL?.();
-  if (al) {
-    const primary = al.split(",")[0].split(";")[0].trim();
-    if (primary.includes("-")) return primary;
+const JUNK_CC = new Set(["us", "cn", "ru"]);
+
+const _bingLocale = (lang, buildAL) => {
+  let tag = lang;
+  if (!tag.includes("-")) {
+    const primary = buildAL?.()?.split(",")[0].split(";")[0].trim();
+    if (primary?.toLowerCase().startsWith(`${lang.toLowerCase()}-`)) tag = primary;
   }
-  return lang;
+  const [setlang, cc] = tag.toLowerCase().split("-");
+  let qs = `&setlang=${encodeURIComponent(setlang)}`;
+  if (cc && !JUNK_CC.has(cc)) qs += `&cc=${encodeURIComponent(cc)}`;
+  return qs;
 };
 
 export default class BingEngine {
@@ -46,10 +50,10 @@ export default class BingEngine {
   }
 
   async executeSearch(query, page = 1, timeFilter, context) {
-    const first = (page - 1) * 50;
+    if (page > 1) return [];
     const lang = context?.lang;
-    let url = `https://www.bing.com/search?q=${encodeURIComponent(query)}&count=50&first=${first}`;
-    if (lang) url += `&setlang=${lang}&mkt=${_bingMkt(lang, context?.buildAcceptLanguage)}`;
+    let url = `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
+    if (lang) url += _bingLocale(lang, context?.buildAcceptLanguage);
     const adlt =
       this.safeSearch === "strict" || this.safeSearch === "moderate"
         ? this.safeSearch
