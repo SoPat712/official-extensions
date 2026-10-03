@@ -18,6 +18,7 @@ Streams an AI-written answer above the search results, with inline `[N]` citatio
 | LM Studio | same, default `http://localhost:1234/v1` | |
 | Google Gemini | `:streamGenerateContent` | Token cap goes to `generationConfig.maxOutputTokens` |
 | Anthropic Claude | `POST {baseUrl}/messages` | Thinking uses a token budget |
+| Perplexity | `POST {baseUrl}` as typed, e.g. `https://api.perplexity.ai/v1/responses` | Agent API. Model is `provider/model` or a preset, see below |
 
 **Detect** asks your endpoint what it is and sets the provider for you. **Fetch models** lists what that endpoint serves, but any model id can be typed by hand.
 
@@ -46,7 +47,18 @@ Unsupported parameter: 'max_tokens' is not supported with this model.
 Use 'max_completion_tokens' instead.
 ```
 
-If you see that, switch **Token limit parameter** to `max_completion_tokens`. The default stays `max_tokens`, which is what everything else expects. Gemini, Anthropic and Ollama ignore this setting, they have their own field.
+If you see that, switch **Token limit parameter** to `max_completion_tokens`. The default stays `max_tokens`, which is what everything else expects. Gemini, Anthropic, Perplexity and Ollama ignore this setting, they have their own field.
+
+## Perplexity
+
+Perplexity moved off Chat Completions to its Agent API, so it has its own provider instead of going through OpenAI compatible. Set the base URL to the full endpoint, `https://api.perplexity.ai/v1/responses`. Nothing is appended to it, so if Perplexity moves the route again you only change the field. **Fetch models** reads `models` next to it, here `https://api.perplexity.ai/v1/models`.
+
+The model field takes either:
+
+- A model id in `provider/model` form, like `openai/gpt-5.6-sol` or `anthropic/claude-sonnet-4-6`. **Fetch models** lists them. The model answers from your search results only, so the `[N]` citations line up.
+- A preset: `fast`, `low`, `medium`, `high` or `xhigh`. Presets run Perplexity's own web search on top of your results. They answer well, but the citations they add don't point at degoog's sources, and the higher ones are slow and cost more.
+
+**Let reasoning models think** sends `reasoning.effort: medium`.
 
 ## Extra request headers
 

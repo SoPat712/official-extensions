@@ -27,6 +27,7 @@ export const PROVIDER_ORDER = Object.freeze([
   ProviderId.LmStudio,
   ProviderId.Gemini,
   ProviderId.Anthropic,
+  ProviderId.Perplexity,
 ]);
 
 export const PROVIDER_LABELS = Object.freeze({
@@ -39,6 +40,7 @@ export const PROVIDER_LABELS = Object.freeze({
   [ProviderId.LmStudio]: "LM Studio",
   [ProviderId.Gemini]: "Google Gemini",
   [ProviderId.Anthropic]: "Anthropic Claude",
+  [ProviderId.Perplexity]: "Perplexity",
 });
 
 const HOSTED = [
@@ -46,6 +48,7 @@ const HOSTED = [
   { id: ProviderId.OpenRouter, host: "openrouter.ai" },
   { id: ProviderId.Gemini, host: new URL(GEMINI_DEFAULT_BASE).host },
   { id: ProviderId.Anthropic, host: new URL(ANTHROPIC_DEFAULT_BASE).host },
+  { id: ProviderId.Perplexity, host: "api.perplexity.ai" },
 ];
 
 const PROBES = [

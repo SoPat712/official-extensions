@@ -6,6 +6,7 @@ import { ollamaAdapter } from "./ollama.js";
 import { openAICompatAdapter } from "./openai-compat.js";
 import { openAIAdapter } from "./openai.js";
 import { openRouterAdapter } from "./openrouter.js";
+import { perplexityAdapter } from "./perplexity.js";
 import { vllmAdapter } from "./vllm.js";
 import { ProviderId } from "./types.js";
 
@@ -24,6 +25,7 @@ export const ADAPTERS = {
   [ProviderId.LmStudio]: lmStudioAdapter,
   [ProviderId.Gemini]: geminiAdapter,
   [ProviderId.Anthropic]: anthropicAdapter,
+  [ProviderId.Perplexity]: perplexityAdapter,
 };
 
 export const ADAPTER_REQUIREMENTS = {
@@ -36,6 +38,7 @@ export const ADAPTER_REQUIREMENTS = {
   [ProviderId.LmStudio]: { baseUrl: false, apiKey: false },
   [ProviderId.Gemini]: { baseUrl: false, apiKey: true },
   [ProviderId.Anthropic]: { baseUrl: false, apiKey: true },
+  [ProviderId.Perplexity]: { baseUrl: true, apiKey: true },
 };
 
 const COMPAT_PROVIDER_IDS = new Set([
