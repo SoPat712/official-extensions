@@ -1,8 +1,10 @@
 # Zen Theme
 
 <div align="center">
-    <img width="800" src="./screenshots/home.png" />
-    <img width="800" src="./screenshots/search.png" />
+    <img width="800" src="./screenshots/1.png" />
+    <img width="800" src="./screenshots/2.png" />
+    <img width="800" src="./screenshots/3.png" />
+    <img width="800" src="./screenshots/4.png" />
 </div>
 
 This is an example theme on how to override the default theme in degoog.
