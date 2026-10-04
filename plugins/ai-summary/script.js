@@ -540,3 +540,4 @@
   const existing = glanceEl.querySelector(".glance-ai");
   if (existing) bootBox(existing);
 })();
+
