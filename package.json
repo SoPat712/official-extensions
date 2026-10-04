@@ -183,13 +183,6 @@
       "type": "command"
     },
     {
-      "path": "plugins/oidc",
-      "name": "OIDC / SSO",
-      "description": "Locks settings behind any OpenID Connect provider. Puts an avatar on the home page for the signed-in user.",
-      "version": "1.0.0",
-      "type": "middleware"
-    },
-    {
       "path": "plugins/dynacat",
       "name": "Dynacat",
       "description": "Puts Dynacat widgets on the home page and behind !dynacat. The token stays on the server. A picker sets which widgets show, how wide they are, and in what order.",
