@@ -283,6 +283,7 @@
     let streamDone = false;
     let expanded = false;
     let needsClamp = true;
+    let focusInputOnComplete = false;
 
     const applyExpand = (open, focusInput = false) => {
       expanded = open;
@@ -291,9 +292,13 @@
       if (collapseBtn) collapseBtn.hidden = !open;
       if (open) {
         bodyEl.classList.remove("glance-ai-body--clamped");
-        if (streamDone) openChat(box, focusInput);
+        if (streamDone) {
+          focusInputOnComplete = false;
+          openChat(box, focusInput);
+        } else if (focusInput) focusInputOnComplete = true;
         return;
       }
+      focusInputOnComplete = false;
       const chatWrap = box.querySelector(".glance-ai-chat");
       if (chatWrap) chatWrap.hidden = true;
       if (needsClamp) bodyEl.classList.add("glance-ai-body--clamped");
@@ -321,7 +326,11 @@
         initFollowUp(box, text);
         requestAnimationFrame(() => {
           needsClamp = !!(bodyEl && bodyEl.scrollHeight > MAX_SUMMARY_HEIGHT);
-          if (!needsClamp || expanded) applyExpand(true);
+          // Honor an earlier expand click only if focus has not moved to another control.
+          const focusInput = focusInputOnComplete && document.hasFocus() &&
+            (document.activeElement === document.body || document.activeElement === expandBtn);
+          focusInputOnComplete = false;
+          if (!needsClamp || expanded) applyExpand(true, focusInput);
         });
       },
       onFail: (msg) => {
