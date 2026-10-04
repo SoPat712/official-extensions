@@ -266,11 +266,11 @@
 
   const MAX_SUMMARY_HEIGHT = 160;
 
-  const openChat = (box) => {
+  const openChat = (box, focusInput = false) => {
     const chatWrap = box.querySelector(".glance-ai-chat");
     const input = box.querySelector(".glance-ai-input");
     if (chatWrap) chatWrap.hidden = false;
-    if (input) input.focus({ preventScroll: true });
+    if (focusInput && input) input.focus({ preventScroll: true });
   };
 
   const streamSummary = async (box) => {
@@ -284,14 +284,14 @@
     let expanded = false;
     let needsClamp = true;
 
-    const applyExpand = (open) => {
+    const applyExpand = (open, focusInput = false) => {
       expanded = open;
       if (!bodyEl) return;
       if (expandBtn) expandBtn.hidden = open;
       if (collapseBtn) collapseBtn.hidden = !open;
       if (open) {
         bodyEl.classList.remove("glance-ai-body--clamped");
-        if (streamDone) openChat(box);
+        if (streamDone) openChat(box, focusInput);
         return;
       }
       const chatWrap = box.querySelector(".glance-ai-chat");
@@ -299,7 +299,7 @@
       if (needsClamp) bodyEl.classList.add("glance-ai-body--clamped");
     };
 
-    expandBtn?.addEventListener("click", () => applyExpand(true));
+    expandBtn?.addEventListener("click", () => applyExpand(true, true));
     collapseBtn?.addEventListener("click", () => applyExpand(false));
 
     const query = getQuery();
@@ -409,7 +409,6 @@
         messagesEl.appendChild(err);
       },
     });
-    input.focus();
   };
 
   const popEl = (() => {
@@ -541,4 +540,3 @@
   const existing = glanceEl.querySelector(".glance-ai");
   if (existing) bootBox(existing);
 })();
-
