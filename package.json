@@ -363,8 +363,8 @@
     {
       "path": "engines/brave",
       "name": "Brave Search",
-      "description": "Brave web search by scraping HTML. For API access use Brave API Search.",
-      "version": "1.0.0",
+      "description": "Brave web search by scraping HTML. For API access use Brave API Search. We found curl-impersonate works best with Brave, so it's now the default transport. If you're still on curl or fetch, switch to curl-impersonate in advanced options.",
+      "version": "1.1.0",
       "minDegoogVersion": "0.19.0",
       "legacyIds": [
         "brave",

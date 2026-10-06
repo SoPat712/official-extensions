@@ -15,6 +15,9 @@ const _cookie = (lang, safeSearch) => {
   return parts.join("; ");
 };
 
+export const description =
+  "Brave web search by scraping HTML. For API access use Brave API Search. We found curl-impersonate works best with Brave, so it's now the default transport. If you're still on curl or fetch, switch to curl-impersonate in advanced options.";
+
 export default class BraveEngine {
   isClientExposed = false;
   name = "Brave Search";
@@ -22,6 +25,14 @@ export default class BraveEngine {
   safeSearch = "moderate";
 
   settingsSchema = [
+    {
+      key: "outgoingTransport",
+      label: "Outgoing HTTP client transport",
+      type: "select",
+      options: ["fetch", "curl", "curl-impersonate", "curl-fallback"],
+      default: "curl-impersonate",
+      advanced: true,
+    },
     {
       key: "safeSearch",
       label: "Safe Search",
