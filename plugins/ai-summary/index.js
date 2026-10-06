@@ -95,7 +95,7 @@ export const slot = {
   name: "AI Summary",
   waitForResults: true,
   get description() {
-    return this.t?.("ai-summary.description") ?? "AI Summary";
+    return this.t?.("ai-summary-slot.description") ?? "AI Summary";
   },
   position: "at-a-glance",
   isClientExposed: false,

@@ -133,13 +133,13 @@
     "</div>";
 
   const writingHtml = () =>
-    '<div class="glance-ai-writing" aria-label="' + escapeHtml(t("ai-summary.writing") || "writing") + '">' +
+    '<div class="glance-ai-writing" aria-label="' + escapeHtml(t("ai-summary-slot.writing") || "writing") + '">' +
     "<span></span><span></span><span></span></div>";
 
   const mountThinking = (anchor, position) => {
     const label = document.createElement("div");
     label.className = "glance-ai-thinking-label";
-    label.textContent = t("ai-summary.thinking");
+    label.textContent = t("ai-summary-slot.thinking");
     const stream = document.createElement("div");
     stream.className = "glance-ai-thinking-stream";
     if (position === "before") {
@@ -239,14 +239,14 @@
       onDone: () => {
         clearTransient(target);
         if (!textBuf.trim()) {
-          onFail(t("ai-summary.no-response"));
+          onFail(t("ai-summary-slot.no-response"));
           return;
         }
         onComplete(textBuf);
       },
       onError: (msg) => {
         clearTransient(target);
-        onFail(msg || t("ai-summary.request-failed"));
+        onFail(msg || t("ai-summary-slot.request-failed"));
       },
     };
 
@@ -259,7 +259,7 @@
         });
         await consumeSse(res, handlers);
       } catch {
-        handlers.onError(t("ai-summary.request-failed"));
+        handlers.onError(t("ai-summary-slot.request-failed"));
       }
     })();
   };
@@ -460,7 +460,7 @@
     if (!picked.length) return;
     popEl.innerHTML =
       (picked.length > 1
-        ? `<div class="glance-ai-pop-label">${escapeHtml(t("ai-summary.sources"))}</div>`
+        ? `<div class="glance-ai-pop-label">${escapeHtml(t("ai-summary-slot.sources"))}</div>`
         : "") + picked.map(srcRow).join("");
     popEl.classList.add("glance-ai-pop--visible");
     popEl.classList.toggle("glance-ai-pop--pinned", !!pinned);

@@ -1,5 +1,5 @@
 {
-  "ai-summary": {
+  "ai-summary-slot": {
     "name": "AI Summary",
     "description": "Streams an AI-generated summary with inline source citations. Works with OpenAI-compatible APIs (incl. Ollama), Google Gemini, and Anthropic Claude.",
     "badge": "AI Summary",
