@@ -193,7 +193,7 @@
       "path": "plugins/image-search",
       "name": "Image search",
       "description": "Search with a picture. Drop, paste or pick one in the search bar and your own vision model, such as Ollama or llama.cpp, turns it into a query. The browser then reorders the results by how close they look to the picture. Works with engine bangs like !immich.",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "type": "command",
       "minDegoogVersion": "1.1.0"
     },
