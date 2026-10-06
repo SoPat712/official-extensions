@@ -95,30 +95,27 @@ export const listModels = async (provider, baseUrl, apiKey) => {
 };
 
 const WORD_RE = /[\p{L}\p{N}]/u;
-const EDGE_RE = /^[\s"'`:;,]+|[\s"'`:;,]+$/g;
-const LOOSE_QUERY_RE = /"query"\s*:\s*"([^"]*)/;
+const THINK_RE = /<think>[\s\S]*?<\/think>/g;
+const QUOTES_RE = /^["'`]+|["'`]+$/g;
 
-const tidy = (q) => String(q ?? "").replace(EDGE_RE, "").trim();
+const firstLine = (text) =>
+  (text.split("\n").map((l) => l.trim()).find(Boolean) ?? "").replace(QUOTES_RE, "");
 
-const looseQuery = (text) => {
-  const match = LOOSE_QUERY_RE.exec(text);
-  if (match) return match[1];
-  return text.split("\n").map((l) => l.trim()).find(Boolean) ?? "";
-};
-
-const readQuery = (text) => {
+const jsonQuery = (text) => {
   try {
     const q = JSON.parse(text)?.query;
-    return typeof q === "string" ? q : "";
+    return typeof q === "string" ? q.trim() : "";
   } catch {
-    return looseQuery(text);
+    return "";
   }
 };
 
-const parseQuery = (raw) => {
-  const text = String(raw ?? "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-  const query = tidy(readQuery(text));
-  return { query: WORD_RE.test(query) ? query : "", raw: text };
+const readQuery = (text) => jsonQuery(text) || firstLine(text);
+
+const parseQuery = (raw, details = {}) => {
+  const text = String(raw ?? "").replace(THINK_RE, "").trim();
+  const query = readQuery(text);
+  return { query, raw: text, details, suspect: !query || !WORD_RE.test(query) };
 };
 
 const askOllama = async (cfg, prompt, image) => {
@@ -136,7 +133,12 @@ const askOllama = async (cfg, prompt, image) => {
     }),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return parseQuery((await res.json())?.message?.content);
+  const data = await res.json();
+  return parseQuery(data?.message?.content, {
+    provider: cfg.provider,
+    finish: data?.done_reason,
+    thinking: !!data?.message?.thinking,
+  });
 };
 
 const askOpenAI = async (cfg, prompt, image) => {
@@ -162,7 +164,12 @@ const askOpenAI = async (cfg, prompt, image) => {
     }),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return parseQuery((await res.json())?.choices?.[0]?.message?.content);
+  const choice = (await res.json())?.choices?.[0];
+  return parseQuery(choice?.message?.content, {
+    provider: cfg.provider,
+    finish: choice?.finish_reason,
+    thinking: !!(choice?.message?.reasoning_content || choice?.message?.reasoning),
+  });
 };
 
 export const describeImage = (cfg, prompt, image) =>

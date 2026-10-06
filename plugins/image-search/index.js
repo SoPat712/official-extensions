@@ -11,6 +11,7 @@ import {
 
 const LOG_NS = "image-search";
 const MAX_TEXT_CHARS = 200;
+const MAX_RAW_CHARS = 2000;
 const AUTO = "auto";
 const TRANSFORMERS_PKG = "@huggingface/transformers";
 const ORT_PKG = "onnxruntime-web";
@@ -443,23 +444,16 @@ const _prompt = (text) =>
     .filter(Boolean)
     .join(" ");
 
-const _noQuery = (raw) => {
-  if (!raw)
-    return _json(
-      { error: "The vision model returned no query", code: "noQuery" },
-      502,
-    );
-  console.warn(
-    LOG_NS,
-    `${_settings.model} answered without a usable query: ${JSON.stringify(raw.slice(0, MAX_TEXT_CHARS))}`,
-  );
-  return _json(
-    {
-      error: "The vision model answered without a usable query",
-      code: "badQuery",
-    },
-    502,
-  );
+const _suspect = ({ query, raw, details }) => {
+  const warning = {
+    message: "The vision model's answer doesn't look like a search query",
+    model: _settings.model,
+    query,
+    raw: raw.slice(0, MAX_RAW_CHARS),
+    ...details,
+  };
+  console.warn(LOG_NS, "suspicious vision model answer", JSON.stringify(warning));
+  return warning;
 };
 
 const _describe = async (req) => {
@@ -487,7 +481,7 @@ const _describe = async (req) => {
 
   _inFlight++;
   try {
-    const { query, raw } = await describeImage(
+    const answer = await describeImage(
       {
         ..._settings,
         provider: _provider,
@@ -496,8 +490,17 @@ const _describe = async (req) => {
       _prompt(text),
       image,
     );
-    if (!query) return _noQuery(raw);
-    return _json({ query: query.slice(0, 160) });
+    const warning = answer.suspect ? _suspect(answer) : undefined;
+    if (!answer.query)
+      return _json(
+        {
+          error: "The vision model returned no query",
+          code: "noQuery",
+          warning,
+        },
+        502,
+      );
+    return _json({ query: answer.query.slice(0, 160), warning });
   } catch (err) {
     console.warn(LOG_NS, "describe failed", err?.message ?? err);
     return _json(

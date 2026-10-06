@@ -314,6 +314,7 @@ const _start = async (bar) => {
       body: JSON.stringify({ image, text }),
     });
     const body = await res.json().catch(() => ({}));
+    if (body.warning) console.warn("[image-search]", body.warning.message, body.warning);
     if (!res.ok || !body.query)
       throw new Error(
         body.code ? _t(`errors.${body.code}`) : body.error || `HTTP ${res.status}`,
