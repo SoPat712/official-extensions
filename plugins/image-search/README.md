@@ -79,7 +79,7 @@ All advanced.
 | onnxruntime-web version | Blank                          | Blank means the version transformers.js depends on.                  |
 | Runtime checksums       | SHA-256 of the default files   | One `file sha256` per line. Update or clear them when versions change. |
 
-The ranking model uses WebGPU when the browser has it and WebAssembly when it doesn't. The first search downloads the model from this server, about 170 MB for the default one, and the browser caches it after that.
+The ranking model uses WebGPU when the browser has it and WebAssembly when it doesn't. The first search downloads the model from this server, about 170 MB for the default one, and the browser caches it after that. The results page starts loading the model as soon as it opens, while the search is still running, and shows each step until ranking starts.
 
 ## Translations
 

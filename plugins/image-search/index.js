@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, rename, stat } from "node:fs/promises";
+import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
   describeImage,
@@ -59,6 +59,8 @@ const DEVICES = [AUTO, "webgpu", "wasm"];
 const WEAK_MODES = ["bottom", "hide", "keep"];
 const REPO_RE = /^[\w.-]+\/[\w.-]+$/;
 const REV_RE = /^[\w.-]{1,64}$/;
+const COMMIT_RE = /^[0-9a-f]{40}$/;
+const RANGE_RE = /^bytes=(\d*)-(\d*)$/;
 const VERSION_RE = /^[\w.+-]{1,64}$/;
 const SHA_RE = /^[0-9a-f]{64}$/;
 const MODEL_FILE_RE = /^(onnx\/)?[\w.-]+\.(json|txt|onnx|onnx_data)$/;
@@ -111,6 +113,11 @@ const _cacheDir = join(
   "image-search",
 );
 const _downloads = new Map();
+const _missing = new Set();
+const FILE_HEADERS = {
+  "Cache-Control": "public, max-age=31536000, immutable",
+  "Accept-Ranges": "bytes",
+};
 
 const _json = (data, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -146,6 +153,7 @@ const _parseChecksums = (text) => {
 const _model = { repo: DEFAULTS.rankModel, revision: DEFAULTS.rankRevision };
 
 const _resolveRevision = async (repo, revision) => {
+  if (COMMIT_RE.test(revision)) return revision;
   const lookup = async (rev) => {
     const res = await fetch(
       `${_settings.modelHost}/api/models/${repo}/revision/${encodeURIComponent(rev)}`,
@@ -176,8 +184,24 @@ const _resolveRevision = async (repo, revision) => {
   return revision;
 };
 
-const _resolveOrt = async () => {
-  if (_settings.ortVersion) return _settings.ortVersion;
+const _ortPin = () =>
+  join(
+    _cacheDir,
+    "runtime",
+    `${TRANSFORMERS_PKG}@${_settings.transformersVersion}`,
+    "ort-version",
+  );
+
+const _readOrtPin = async () => {
+  try {
+    const version = (await readFile(_ortPin(), "utf8")).trim();
+    return VERSION_RE.test(version) ? version : "";
+  } catch {
+    return "";
+  }
+};
+
+const _fetchOrt = async () => {
   try {
     const res = await fetch(
       `${_settings.runtimeHost}/${TRANSFORMERS_PKG}@${_settings.transformersVersion}/package.json`,
@@ -197,6 +221,25 @@ const _resolveOrt = async () => {
   return "";
 };
 
+const _resolveOrt = async () => {
+  if (_settings.ortVersion) return _settings.ortVersion;
+  const pinned = await _readOrtPin();
+  if (pinned) return pinned;
+  const version = await _fetchOrt();
+  if (!version) return "";
+  try {
+    await mkdir(dirname(_ortPin()), { recursive: true });
+    await writeFile(_ortPin(), version);
+  } catch (err) {
+    console.warn(
+      LOG_NS,
+      "could not save the onnxruntime-web version",
+      err?.message ?? err,
+    );
+  }
+  return version;
+};
+
 const _exists = async (path) => {
   try {
     return (await stat(path)).isFile();
@@ -209,9 +252,13 @@ const _download = (url, dest, sha256) => {
   if (_downloads.has(dest)) return _downloads.get(dest);
   const job = (async () => {
     if (await _exists(dest)) return true;
+    if (_missing.has(url)) return false;
     await mkdir(dirname(dest), { recursive: true });
     const res = await fetch(url, { redirect: "follow" });
-    if (res.status === 404) return false;
+    if (res.status === 404) {
+      _missing.add(url);
+      return false;
+    }
     if (!res.ok)
       throw new Error(`download ${url} failed with HTTP ${res.status}`);
     const buf = new Uint8Array(await res.arrayBuffer());
@@ -230,13 +277,34 @@ const _download = (url, dest, sha256) => {
   return job;
 };
 
-const _serveFile = (path, type) =>
-  new Response(Bun.file(path), {
+const _range = (header, size) => {
+  const match = RANGE_RE.exec(header ?? "");
+  if (!match || (!match[1] && !match[2])) return null;
+  const [, from, to] = match;
+  const start = from ? Number(from) : Math.max(0, size - Number(to));
+  const end = from && to ? Math.min(Number(to), size - 1) : size - 1;
+  return { start, end };
+};
+
+const _serveFile = (req, path, type) => {
+  const file = Bun.file(path);
+  const headers = { ...FILE_HEADERS, "Content-Type": type };
+  const range = _range(req.headers.get("range"), file.size);
+  if (!range) return new Response(file, { headers });
+  if (range.start > range.end)
+    return new Response(null, {
+      status: 416,
+      headers: { ...headers, "Content-Range": `bytes */${file.size}` },
+    });
+  return new Response(file.slice(range.start, range.end + 1), {
+    status: 206,
     headers: {
-      "Content-Type": type,
-      "Cache-Control": "public, max-age=31536000, immutable",
+      ...headers,
+      "Content-Range": `bytes ${range.start}-${range.end}/${file.size}`,
+      "Content-Length": String(range.end - range.start + 1),
     },
   });
+};
 
 const _runtimeSource = (name) => {
   if (name === TRANSFORMERS_FILE) {
@@ -257,7 +325,7 @@ const _fetchRuntime = async (name) => {
   return dest;
 };
 
-const _runtimeFile = async (name) => {
+const _runtimeFile = async (req, name) => {
   if (!RUNTIME_NAMES.includes(name))
     return _json({ error: "Unknown file" }, 404);
   let dest = "";
@@ -268,6 +336,7 @@ const _runtimeFile = async (name) => {
     return _json({ error: "Runtime unavailable" }, 502);
   }
   return _serveFile(
+    req,
     dest,
     name.endsWith(".wasm") ? "application/wasm" : "text/javascript",
   );
@@ -279,10 +348,22 @@ const _modelPath = (repo, revision, name) =>
 const _modelUrl = (repo, revision, name) =>
   `${_settings.modelHost}/${repo}/resolve/${revision}/${name}`;
 
+const _isStale = (params) => {
+  const repo = params.get("m");
+  const revision = params.get("r");
+  return (
+    (repo != null && repo !== _model.repo) ||
+    (revision != null && revision !== _model.revision)
+  );
+};
+
 const _modelFile = async (req) => {
-  const name = new URL(req.url).searchParams.get("f") ?? "";
+  const params = new URL(req.url).searchParams;
+  const name = params.get("f") ?? "";
   if (!MODEL_FILE_RE.test(name)) return _json({ error: "Unknown file" }, 404);
   await _ready;
+  if (_isStale(params))
+    return _json({ error: "The ranking model changed, reload the page" }, 409);
   const { repo, revision } = _model;
   const dest = _modelPath(repo, revision, name);
   try {
@@ -293,6 +374,7 @@ const _modelFile = async (req) => {
     return _json({ error: "Model file unavailable" }, 502);
   }
   return _serveFile(
+    req,
     dest,
     name.endsWith(".json") ? "application/json" : "application/octet-stream",
   );
@@ -304,9 +386,11 @@ const _warmModelFiles = () => {
     webgpu: [_settings.gpuDtype],
     wasm: [_settings.wasmDtype],
   }[_settings.device];
+  const suffixes = [...new Set(dtypes.map((d) => DTYPE_SUFFIX[d]))];
   return [
     ...MODEL_CONFIG_FILES,
-    ...new Set(dtypes.map((d) => `onnx/vision_model${DTYPE_SUFFIX[d]}.onnx`)),
+    ...suffixes.map((suffix) => `onnx/vision_model${suffix}.onnx`),
+    ...suffixes.map((suffix) => `onnx/text_model${suffix}.onnx`),
   ];
 };
 
@@ -815,6 +899,7 @@ export default {
         typeof s.checksums === "string" ? s.checksums : DEFAULTS.checksums,
     };
     _checksums = _parseChecksums(_settings.checksums);
+    _missing.clear();
     if (_settings.provider === AUTO) {
       _provider = ProviderId.Ollama;
       void detectProvider(_settings.baseUrl, _settings.apiKey).then((id) => {
@@ -920,13 +1005,13 @@ export default {
       method: "get",
       path: "/runtime",
       handler: (req) =>
-        _runtimeFile(new URL(req.url).searchParams.get("f") ?? ""),
+        _runtimeFile(req, new URL(req.url).searchParams.get("f") ?? ""),
     },
     { method: "get", path: "/model", handler: _modelFile },
     ...ORT_FILES.map((name) => ({
       method: "get",
       path: `/ort/${name}`,
-      handler: () => _runtimeFile(name),
+      handler: (req) => _runtimeFile(req, name),
     })),
   ],
 };

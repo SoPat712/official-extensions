@@ -193,6 +193,33 @@ body.image-search-dragging .image-search-dropzone {
   font-size: 12px;
 }
 
+.image-search-strip-bar {
+  position: relative;
+  height: 3px;
+  margin-top: 4px;
+  border-radius: 2px;
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+
+.image-search-strip-bar[hidden] {
+  display: none;
+}
+
+.image-search-strip-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--brand-blue);
+  transition: width 0.2s ease;
+}
+
+.image-search-strip-bar-busy .image-search-strip-fill {
+  position: absolute;
+  width: 35%;
+  animation: image-search-sweep 1.1s ease-in-out infinite;
+}
+
 .image-search-strip-toggle {
   flex-shrink: 0;
   background: var(--btn-bg);
@@ -234,6 +261,15 @@ body.image-search-dragging .image-search-dropzone {
   }
 }
 
+@keyframes image-search-sweep {
+  from {
+    left: -35%;
+  }
+  to {
+    left: 100%;
+  }
+}
+
 @keyframes image-search-bob {
   50% {
     transform: translateY(-8px) scale(1.1);
@@ -244,7 +280,8 @@ body.image-search-dragging .image-search-dropzone {
   .image-search-chip,
   .image-search-dropzone,
   .image-search-dropzone-icon,
-  .image-search-chip-spinner::after {
+  .image-search-chip-spinner::after,
+  .image-search-strip-fill {
     animation: none;
     transition: none;
   }
