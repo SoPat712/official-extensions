@@ -689,14 +689,17 @@ const _isActiveSearch = (api, active) => {
   return query.trim() === active.query && type === "images";
 };
 
+const _noResults = () => !!document.querySelector("#results-list .no-results");
+
 const _waitForResults = (api, active, fresh, timeout = 20000) =>
   new Promise((resolve) => {
     const ready = () => _isActiveSearch(api, active) && api.list().length > 0;
+    const empty = () => _isActiveSearch(api, active) && _noResults();
     if (!fresh && ready()) return resolve(true);
     const onReady = () => {
-      if (!ready()) return;
+      if (!ready() && !empty()) return;
       window.removeEventListener(RESULTS_EVENT, onReady);
-      resolve(true);
+      resolve(ready());
     };
     window.addEventListener(RESULTS_EVENT, onReady);
     setTimeout(() => {
