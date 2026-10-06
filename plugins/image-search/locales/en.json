@@ -192,6 +192,7 @@
         "tooLarge": "That image is too large.",
         "invalid": "The image didn't arrive. Try again.",
         "noQuery": "The vision model didn't return a query.",
+        "badQuery": "The vision model replied, but not with a usable search query. Check that the model supports images, or try another one.",
         "describeFailed": "The vision model couldn't describe this image."
       }
     }

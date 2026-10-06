@@ -443,6 +443,25 @@ const _prompt = (text) =>
     .filter(Boolean)
     .join(" ");
 
+const _noQuery = (raw) => {
+  if (!raw)
+    return _json(
+      { error: "The vision model returned no query", code: "noQuery" },
+      502,
+    );
+  console.warn(
+    LOG_NS,
+    `${_settings.model} answered without a usable query: ${JSON.stringify(raw.slice(0, MAX_TEXT_CHARS))}`,
+  );
+  return _json(
+    {
+      error: "The vision model answered without a usable query",
+      code: "badQuery",
+    },
+    502,
+  );
+};
+
 const _describe = async (req) => {
   const maxImageChars = Math.ceil((_settings.maxImageMb * 1024 * 1024 * 4) / 3);
   if (_inFlight >= _settings.maxConcurrent)
@@ -468,7 +487,7 @@ const _describe = async (req) => {
 
   _inFlight++;
   try {
-    const query = await describeImage(
+    const { query, raw } = await describeImage(
       {
         ..._settings,
         provider: _provider,
@@ -477,11 +496,7 @@ const _describe = async (req) => {
       _prompt(text),
       image,
     );
-    if (!query)
-      return _json(
-        { error: "The vision model returned no query", code: "noQuery" },
-        502,
-      );
+    if (!query) return _noQuery(raw);
     return _json({ query: query.slice(0, 160) });
   } catch (err) {
     console.warn(LOG_NS, "describe failed", err?.message ?? err);

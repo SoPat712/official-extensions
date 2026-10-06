@@ -8,6 +8,8 @@ const HF_RE =
   /^https:\/\/huggingface\.co\/([^/]+\/[^/]+)\/resolve\/([^/]+)\/(.+)$/;
 const MB = 1024 * 1024;
 const MAX_THREADS = 4;
+const TOAST_MIN_MS = 3500;
+const TOAST_MS_PER_CHAR = 60;
 const DROP_ICON =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-4.5-4.5L7 20"/></svg>';
 
@@ -101,7 +103,10 @@ const _clearActive = () => {
 const _toast = (message) => {
   const node = _el("div", "image-search-toast", message);
   document.body.appendChild(node);
-  setTimeout(() => node.remove(), 3500);
+  setTimeout(
+    () => node.remove(),
+    Math.max(TOAST_MIN_MS, message.length * TOAST_MS_PER_CHAR),
+  );
 };
 
 let _configPromise = null;
@@ -601,6 +606,7 @@ const _textVec = async ({ cfg, clip }, active) => {
 
 const RANKING_ID = __PLUGIN_ID__;
 const RESULTS_EVENT = "degoog-results-ready";
+const WATCH_MS = 120;
 
 const _resultsApi = (timeout = 10000) =>
   new Promise((resolve) => {
@@ -614,8 +620,7 @@ const _stopRanker = (clear) => {
   if (!_ranker) return;
   _ranker.stopped = true;
   _ranker.unwatch?.();
-  if (_ranker.onResults)
-    window.removeEventListener(RESULTS_EVENT, _ranker.onResults);
+  _ranker.unwatchResults?.();
   _ranker.api.setRanking(RANKING_ID, null);
   _ranker.strip?.remove();
   _detach(document.getElementById("results-search-bar"));
@@ -691,21 +696,42 @@ const _isActiveSearch = (api, active) => {
 
 const _noResults = () => !!document.querySelector("#results-list .no-results");
 
+const _watchResults = (fn) => {
+  let timer = 0;
+  const kick = () => {
+    if (timer) return;
+    timer = setTimeout(() => {
+      timer = 0;
+      fn();
+    }, WATCH_MS);
+  };
+  const list = document.getElementById("results-list");
+  const observer = list ? new MutationObserver(kick) : null;
+  observer?.observe(list, { childList: true, subtree: true });
+  window.addEventListener(RESULTS_EVENT, kick);
+  return () => {
+    clearTimeout(timer);
+    observer?.disconnect();
+    window.removeEventListener(RESULTS_EVENT, kick);
+  };
+};
+
 const _waitForResults = (api, active, fresh, timeout = 20000) =>
   new Promise((resolve) => {
     const ready = () => _isActiveSearch(api, active) && api.list().length > 0;
     const empty = () => _isActiveSearch(api, active) && _noResults();
     if (!fresh && ready()) return resolve(true);
-    const onReady = () => {
-      if (!ready() && !empty()) return;
-      window.removeEventListener(RESULTS_EVENT, onReady);
+    let timer = 0;
+    let unwatch = () => {};
+    const finish = () => {
+      clearTimeout(timer);
+      unwatch();
       resolve(ready());
     };
-    window.addEventListener(RESULTS_EVENT, onReady);
-    setTimeout(() => {
-      window.removeEventListener(RESULTS_EVENT, onReady);
-      resolve(ready());
-    }, timeout);
+    unwatch = _watchResults(() => {
+      if (ready() || empty()) finish();
+    });
+    timer = setTimeout(finish, timeout);
   });
 
 const _rankWith = (state, cfg) => {
@@ -883,7 +909,7 @@ const _startRanker = async (api, active, fresh) => {
     ui: null,
     strip: null,
     unwatch: null,
-    onResults: null,
+    unwatchResults: null,
   };
   _ranker = state;
 
@@ -923,15 +949,14 @@ const _startRanker = async (api, active, fresh) => {
   }
 
   ranker = _rankWith(state, cfg);
-  state.onResults = () => {
+  state.unwatchResults = _watchResults(() => {
     if (!_isActiveSearch(api, active)) {
       _stopRanker(true);
       return;
     }
     if (ranker.thumbs().some((src) => !state.scores.has(src)))
       void ranker.rank();
-  };
-  window.addEventListener(RESULTS_EVENT, state.onResults);
+  });
   if (ranker.thumbs().length) void ranker.rank();
 };
 

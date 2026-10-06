@@ -94,14 +94,31 @@ export const listModels = async (provider, baseUrl, apiKey) => {
   }
 };
 
-const parseQuery = (raw) => {
-  const text = String(raw ?? "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+const WORD_RE = /[\p{L}\p{N}]/u;
+const EDGE_RE = /^[\s"'`:;,]+|[\s"'`:;,]+$/g;
+const LOOSE_QUERY_RE = /"query"\s*:\s*"([^"]*)/;
+
+const tidy = (q) => String(q ?? "").replace(EDGE_RE, "").trim();
+
+const looseQuery = (text) => {
+  const match = LOOSE_QUERY_RE.exec(text);
+  if (match) return match[1];
+  return text.split("\n").map((l) => l.trim()).find(Boolean) ?? "";
+};
+
+const readQuery = (text) => {
   try {
     const q = JSON.parse(text)?.query;
-    if (typeof q === "string" && q.trim()) return q.trim();
-  } catch {}
-  const line = text.split("\n").map((l) => l.trim()).find(Boolean) ?? "";
-  return line.replace(/^["'`]+|["'`]+$/g, "");
+    return typeof q === "string" ? q : "";
+  } catch {
+    return looseQuery(text);
+  }
+};
+
+const parseQuery = (raw) => {
+  const text = String(raw ?? "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+  const query = tidy(readQuery(text));
+  return { query: WORD_RE.test(query) ? query : "", raw: text };
 };
 
 const askOllama = async (cfg, prompt, image) => {

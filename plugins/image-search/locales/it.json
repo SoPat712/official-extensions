@@ -192,6 +192,7 @@
         "tooLarge": "Questa immagine è troppo grande.",
         "invalid": "L'immagine non è arrivata. Riprova.",
         "noQuery": "Il modello di visione non ha restituito una query.",
+        "badQuery": "Il modello di visione ha risposto, ma non con una query di ricerca utilizzabile. Controlla che supporti le immagini, o provane un altro.",
         "describeFailed": "Il modello di visione non è riuscito a descrivere questa immagine."
       }
     }
