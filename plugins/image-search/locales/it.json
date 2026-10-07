@@ -1,11 +1,19 @@
 {
   "image-search-command": {
     "name": "Ricerca per immagine",
-    "description": "Cerca con una foto. Trascinala, incollala o sceglila nella barra di ricerca. Il tuo modello di visione la trasforma in una query, degoog fa una ricerca Immagini e il browser del visitatore riordina i risultati in base a quanto somigliano alla foto.",
+    "description": "Una ricerca per immagini migliore. Il tuo modello di visione trasforma l'immagine in una query per i tuoi normali motori di immagini, e il browser del visitatore riordina i risultati in base a quanto somigliano all'immagine. Ogni parte si può disattivare da sola.",
     "settings": {
       "transparency": {
         "label": "Dove va l'immagine",
-        "description": "Il browser del visitatore manda l'immagine a questo server, che la passa direttamente al modello di visione qui sotto. Il server non la salva e i motori di ricerca non la vedono mai, solo la query di testo scritta dal modello. Il riordino avviene nel browser del visitatore. Questo server scarica il modello di riordino e il runtime una volta sola dagli host qui sotto, e i browser li caricano da questa istanza."
+        "description": "degoog invia l'immagine dal browser del visitatore a questo server. Con Trasforma le immagini in una query attivo, il server la passa direttamente al modello di visione qui sotto e non la conserva. I motori testuali vedono solo la query scritta dal modello. I motori che cercano per immagine ricevono l'immagine stessa, e ognuno lo dice nelle sue impostazioni. Il riordinamento avviene nel browser del visitatore. Questo server scarica una volta il modello e il runtime dagli host qui sotto, e i browser li caricano da questa istanza."
+      },
+      "describe": {
+        "label": "Trasforma le immagini in una query",
+        "description": "Il tuo modello di visione scrive una query per ogni immagine, e degoog la usa con i tuoi normali motori di immagini insieme ai motori che cercano per immagine."
+      },
+      "rank": {
+        "label": "Riordina i risultati in base all'aspetto",
+        "description": "Il browser del visitatore confronta ogni risultato con l'immagine e li riordina."
       },
       "baseUrl": {
         "label": "URL del modello di visione",
@@ -37,13 +45,9 @@
       "maxImageMb": {
         "label": "Immagine più grande accettata, in MB"
       },
-      "uploadMaxSide": {
-        "label": "Ridimensiona i caricamenti a questi pixel",
-        "description": "Il browser riduce il lato più lungo a questa misura prima di inviare. Più grande è più lento, ma dà al modello più dettagli."
-      },
       "maxConcurrent": {
         "label": "Immagini descritte insieme",
-        "description": "Finché ne girano così tante, il server chiede agli altri caricamenti di riprovare."
+        "description": "Mentre ne sono in corso così tante, le nuove ricerche per immagine saltano la query e dicono che il modello è occupato."
       },
       "rankModel": {
         "label": "Modello di riordino",
@@ -64,7 +68,7 @@
       },
       "sameThreshold": {
         "label": "Soglia per stessa immagine, in percentuale",
-        "description": "I risultati da questa somiglianza in su ricevono l'etichetta Stessa immagine."
+        "description": "Quanto l'impronta di un risultato deve somigliare alla tua immagine per avere il badge Stessa immagine. Riconosce copie ridimensionate o ricompresse, non i ritagli."
       },
       "textWeight": {
         "label": "Peso delle parole scritte",
@@ -155,15 +159,6 @@
       "hint": "Oppure trascina o incolla un'immagine nella barra di ricerca. Aggiungi delle parole accanto per restringere la ricerca."
     },
     "script": {
-      "readFailed": "Impossibile leggere questa immagine.",
-      "dropTitle": "Rilascia un'immagine per cercare con quella",
-      "dropHint": "L'immagine resta su questa istanza. I motori di ricerca vedono solo una query di testo.",
-      "remove": "Rimuovi immagine",
-      "refine": "Aggiungi parole per restringere, oppure premi Invio",
-      "notImage": "Rilascia un file immagine per cercare con quello.",
-      "reading": "Lettura dell'immagine…",
-      "unsupported": "Questa versione di degoog non supporta la ricerca per immagine.",
-      "failed": "Ricerca per immagine non riuscita.",
       "searchedFor": "Cercato {query}",
       "yourWords": "le tue parole: \"{text}\"",
       "stages": {
@@ -174,9 +169,11 @@
         "downloadPct": "Download del modello di riordino… {loaded} di {total} MB",
         "device": "Avvio {device}…",
         "source": "Leggo la tua immagine con {device}…",
-        "ready": "Modello di riordino pronto, aspetto i risultati…"
+        "ready": "Modello di riordino pronto, aspetto i risultati…",
+        "readyResults": "Modello pronto, confronto {count} risultati…"
       },
       "ranked": "Riordinati {done} su {total} su questo dispositivo con {device}",
+      "rankedSoFar": "Riordinati {done} finora con {device}, stanno arrivando altri risultati…",
       "copies": "{count} copie di questa immagine",
       "hidden": "{count} nascosti",
       "shown": "{count} risultati poco simili mostrati",
@@ -193,7 +190,8 @@
         "invalid": "L'immagine non è arrivata. Riprova.",
         "noQuery": "Il modello di visione non ha restituito una query.",
         "describeFailed": "Il modello di visione non è riuscito a descrivere questa immagine."
-      }
+      },
+      "searchedWithImage": "Cercato con la tua immagine"
     }
   }
 }

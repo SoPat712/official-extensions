@@ -1,27 +1,30 @@
 # Image search
 
-Search with a picture. Drop, paste or pick one in the search bar, type a few words next to it if you like, and press Enter.
+Makes degoog's image search better. degoog itself takes the image: drop, paste or pick one in the search bar, type a few words next to it if you like, and press Enter. This plugin adds two things, and each can be turned off on its own:
+
+- **Turn images into a search query.** Your vision model writes one short query for the image, and degoog runs it through your normal image engines, next to any engines that search by image.
+- **Re-rank results by how they look.** The visitor's browser compares every result with the image using a CLIP model and reorders them.
 
 ## How it works
 
-The browser sends the picture to this server, and the server hands it to your vision model. The model writes one short search query. The server keeps no copy of the picture and never sends it to a search engine.
+degoog sends the image from the browser to this server with the search. The server hands it to your vision model, which writes a search query. The server keeps no copy of the image. Text engines only ever see that query, so your POST search, language, image filters, cache and indexer settings all apply as usual. The browser remembers the query, so later pages, retries and reloads don't ask the model again.
 
-degoog then runs that query as a normal Images search, so your engines, POST search, language, image filters, cache and indexer all apply.
+Once results arrive, the visitor's browser compares each one with the image. Results that don't look like it move to the end. You can hide them instead, or leave degoog's order alone. Copies of the picture, resized or recompressed, get a "Same image" badge from a perceptual fingerprint of each thumbnail. Crops of it don't, CLIP still ranks those near the top, and results that load as you scroll get ranked too.
 
-Once results arrive, the visitor's browser compares each one with the picture using a CLIP model. Results that don't look like it move to the end. You can hide them instead, or leave degoog's order alone. Exact copies get a "Same image" badge, and results that load as you scroll get ranked too.
+degoog only shows the image button when an enabled engine can use the image, so with the query turned off you need at least one engine that searches by image.
 
 ## Where your data goes
 
-| Data                     | Path                                                                      | Kept                                                    |
-| ------------------------ | ------------------------------------------------------------------------- | ------------------------------------------------------- |
-| The picture              | browser, then this server, then the vision model URL in settings          | In the visitor's tab, in `sessionStorage`, until it closes |
-| The generated query      | browser, then degoog search, then your engines                            | Like any other search                                   |
-| Result thumbnails        | engines, then degoog's image proxy, then the browser                      | Like any other search                                   |
-| Ranking model and runtime | this server downloads them once, browsers load them from this instance    | In `data/cache/image-search/`                           |
+| Data                      | Path                                                                   | Kept                                                         |
+| ------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------ |
+| The image                 | browser, then this server, then the vision model URL in settings       | In the visitor's tab, in `sessionStorage`, until it closes   |
+| The generated query       | this server, then your image engines, then back to the browser         | Like any other search                                        |
+| Result thumbnails         | engines, then degoog's image proxy, then the browser                   | Like any other search                                        |
+| Ranking model and runtime | this server downloads them once, browsers load them from this instance | In `data/cache/image-search/`                                |
 
-If the vision model URL points at a hosted provider, that provider gets the picture.
+If the vision model URL points at a hosted provider, that provider gets the image. Engines that search by image send it to their own site, and each one says so in its settings.
 
-The server downloads two things, once:
+The server downloads two things, once, and only while ranking is on:
 
 - `@huggingface/transformers` and `onnxruntime-web`, from the runtime download host. That's `cdn.jsdelivr.net/npm` unless you change it. The server checks each file in Runtime checksums against its SHA-256 and refuses any that don't match.
 - The ranking model, from the model download host, at the revision you set. Hugging Face by default.
@@ -31,6 +34,11 @@ Browsers never contact either host. Every time you save settings, the server log
 ## Settings
 
 Every setting has a default, and most people only change the vision model URL and model. Advanced settings stay hidden until you show them.
+
+| Setting                          | Default | What it does                                                       |
+| -------------------------------- | ------- | ------------------------------------------------------------------ |
+| Turn images into a search query  | On      | Off hides the vision model settings and skips the model entirely.  |
+| Re-rank results by how they look | On      | Off hides the ranking settings and nothing is downloaded for it.   |
 
 ### Vision model
 
@@ -46,8 +54,7 @@ This is the model that turns the picture into a query.
 | Prompt when the visitor adds words | Built in                 | Advanced. Added when someone types words next to the picture. `{text}` becomes those words.   |
 | Timeout in seconds                 | 60                       | Advanced.                                                                                     |
 | Largest image accepted, in MB      | 6                        | Advanced.                                                                                     |
-| Resize uploads to this many pixels | 768                      | Advanced. The browser shrinks the longest side to this before sending.                        |
-| Images described at once           | 2                        | Advanced. Past this, the server tells new uploads to try again.                               |
+| Images described at once           | 2                        | Advanced. Past this, new image searches skip the query and say the model is busy.            |
 
 ### Ranking
 
@@ -59,10 +66,10 @@ Ranking runs in the visitor's browser.
 | Ranking model revision                 | A pinned commit of the default model     | A branch, tag or commit. Leave it blank, or change the model, to get the latest commit on `main`. |
 | Results that don't look like the image | Move to the end                          | Move them to the end, hide them or leave them where they are.                                   |
 | Match threshold, in percent            | 75                                       | Below this similarity a result counts as not matching.                                          |
-| Same image threshold, in percent       | 95                                       | Advanced. From this similarity up, a result gets the "Same image" badge.                        |
+| Same image threshold, in percent       | 90                                       | Advanced. How close a result's fingerprint has to be to your image to get the "Same image" badge. |
 | Weight of typed words                  | 2                                        | Advanced. How much the typed words count when ordering. 0 ignores them.                         |
 | Run on                                 | WebGPU if available, otherwise WebAssembly | Advanced. Or force one.                                                                       |
-| WebGPU precision                       | fp16                                     | Advanced. The model needs the matching file, such as `onnx/vision_model_fp16.onnx`.             |
+| WebGPU precision                       | fp16                                     | Advanced. The model needs the matching file, such as `onnx/vision_model_fp16.onnx`. GPUs without fp16 support use fp32 on WebGPU instead. |
 | WebAssembly precision                  | q8                                       | Advanced. For example `onnx/vision_model_quantized.onnx`.                                       |
 | Images ranked per batch                | 8                                        | Advanced.                                                                                       |
 | Thumbnails fetched at once             | 12                                       | Advanced.                                                                                       |

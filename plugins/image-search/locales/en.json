@@ -1,11 +1,19 @@
 {
   "image-search-command": {
     "name": "Image search",
-    "description": "Search with a picture. Drop, paste or pick one in the search bar. Your vision model turns it into a search query, degoog runs an Images search with it, and the visitor's browser reorders the results by how close they look to the picture.",
+    "description": "Better image search. Your vision model turns the picture into a search query for your normal image engines, and the visitor's browser reorders the results by how close they look to the picture. Each part can be turned off on its own.",
     "settings": {
       "transparency": {
         "label": "Where the image goes",
-        "description": "The visitor's browser sends the image to this server, which passes it straight to the vision model below. The server doesn't store it and search engines never see it, only the text query the model writes. Ranking runs in the visitor's browser. This server downloads the ranking model and runtime once from the hosts below, and browsers load them from this instance."
+        "description": "degoog sends the image from the visitor's browser to this server. With Turn images into a search query on, the server passes it straight to the vision model below and doesn't store it. Text engines only see the query the model writes. Engines that search by image get the picture itself, and each one says so in its own settings. Ranking runs in the visitor's browser. This server downloads the ranking model and runtime once from the hosts below, and browsers load them from this instance."
+      },
+      "describe": {
+        "label": "Turn images into a search query",
+        "description": "Your vision model writes a query for each image, and degoog runs it through your normal image engines next to the engines that search by image."
+      },
+      "rank": {
+        "label": "Re-rank results by how they look",
+        "description": "The visitor's browser compares every result with the image and reorders them."
       },
       "baseUrl": {
         "label": "Vision model URL",
@@ -37,13 +45,9 @@
       "maxImageMb": {
         "label": "Largest image accepted, in MB"
       },
-      "uploadMaxSide": {
-        "label": "Resize uploads to this many pixels",
-        "description": "The browser shrinks the longest side to this before sending. Bigger is slower but gives the model more detail."
-      },
       "maxConcurrent": {
         "label": "Images described at once",
-        "description": "While this many are running, the server tells further uploads to retry."
+        "description": "While this many are running, new image searches skip the query and say the model is busy."
       },
       "rankModel": {
         "label": "Ranking model",
@@ -64,7 +68,7 @@
       },
       "sameThreshold": {
         "label": "Same image threshold, in percent",
-        "description": "Results at or above this similarity get the Same image badge."
+        "description": "How close a result's fingerprint has to be to your image to get the Same image badge. It catches resized and recompressed copies, not crops."
       },
       "textWeight": {
         "label": "Weight of typed words",
@@ -155,15 +159,6 @@
       "hint": "Or drop or paste an image into the search bar. Add words next to it to narrow the search."
     },
     "script": {
-      "readFailed": "Couldn't read that image.",
-      "dropTitle": "Drop an image to search with it",
-      "dropHint": "The image stays on this instance. Search engines only see a text query.",
-      "remove": "Remove image",
-      "refine": "Add words to narrow it down, or press Enter",
-      "notImage": "Drop an image file to search with it.",
-      "reading": "Reading the image…",
-      "unsupported": "This degoog version can't run image searches.",
-      "failed": "Image search failed.",
       "searchedFor": "Searched for {query}",
       "yourWords": "your words: \"{text}\"",
       "stages": {
@@ -174,9 +169,11 @@
         "downloadPct": "Downloading the ranking model… {loaded} of {total} MB",
         "device": "Starting {device}…",
         "source": "Reading your image with {device}…",
-        "ready": "Ranking model ready, waiting for the results…"
+        "ready": "Ranking model ready, waiting for the results…",
+        "readyResults": "Ranking model ready, comparing {count} results…"
       },
       "ranked": "Ranked {done} of {total} on this device with {device}",
+      "rankedSoFar": "Ranked {done} so far with {device}, more results are on the way…",
       "copies": "{count} copies of this image",
       "hidden": "{count} hidden",
       "shown": "{count} weak matches shown",
@@ -193,7 +190,8 @@
         "invalid": "The image didn't arrive. Try again.",
         "noQuery": "The vision model didn't return a query.",
         "describeFailed": "The vision model couldn't describe this image."
-      }
+      },
+      "searchedWithImage": "Searched with your image"
     }
   }
 }

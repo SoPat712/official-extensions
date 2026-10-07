@@ -10,7 +10,6 @@ import {
 } from "./providers.js";
 
 const LOG_NS = "image-search";
-const MAX_TEXT_CHARS = 200;
 const MAX_RAW_CHARS = 2000;
 const AUTO = "auto";
 const TRANSFORMERS_PKG = "@huggingface/transformers";
@@ -83,7 +82,8 @@ const DEFAULTS = {
   refinePrompt: DEFAULT_REFINE_PROMPT,
   maxImageMb: 6,
   maxConcurrent: 2,
-  uploadMaxSide: 768,
+  describe: true,
+  rank: true,
   rankModel: "Xenova/clip-vit-base-patch32",
   rankRevision: "d15189d7028b43f1d3e65039190477f6af591c2a",
   device: AUTO,
@@ -91,7 +91,7 @@ const DEFAULTS = {
   wasmDtype: "q8",
   weakMatches: "bottom",
   matchThreshold: 75,
-  sameThreshold: 95,
+  sameThreshold: 90,
   textWeight: 2,
   batchSize: 8,
   fetchConcurrency: 12,
@@ -136,6 +136,9 @@ const _num = (v, fallback, min, max) => {
   const n = Number.parseFloat(String(v ?? ""));
   return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
 };
+
+const _bool = (v, fallback) =>
+  v === true || v === "true" ? true : v === false || v === "false" ? false : fallback;
 
 const _pick = (v, allowed, fallback) => (allowed.includes(v) ? v : fallback);
 
@@ -432,7 +435,7 @@ const _config = async () => {
     textWeight: _settings.textWeight,
     batchSize: _settings.batchSize,
     fetchConcurrency: _settings.fetchConcurrency,
-    uploadMaxSide: _settings.uploadMaxSide,
+    rank: _settings.rank,
   });
 };
 
@@ -456,63 +459,39 @@ const _suspect = ({ query, raw, details }) => {
   return warning;
 };
 
-const _describe = async (req) => {
-  const maxImageChars = Math.ceil((_settings.maxImageMb * 1024 * 1024 * 4) / 3);
-  if (_inFlight >= _settings.maxConcurrent)
-    return _json({ error: "Busy, try again in a moment", code: "busy" }, 429);
-  if (Number(req.headers.get("content-length") ?? 0) > maxImageChars + 4096)
-    return _json({ error: "Image too large", code: "tooLarge" }, 413);
-  let body;
-  try {
-    body = await req.json();
-  } catch {
-    return _json({ error: "Invalid body", code: "invalid" }, 400);
-  }
-  const image =
-    typeof body?.image === "string"
-      ? body.image.replace(/^data:image\/[a-z+]+;base64,/, "")
-      : "";
-  const text =
-    typeof body?.text === "string"
-      ? body.text.slice(0, MAX_TEXT_CHARS).trim()
-      : "";
-  if (!image || image.length > maxImageChars)
-    return _json({ error: "Missing or oversized image", code: "invalid" }, 400);
+const _fail = (t, code, fallback) =>
+  new Error(_tr(t, `script.errors.${code}`, fallback));
 
+const _imageQuery = async (t, image, { text = "", signal } = {}) => {
+  if (_inFlight >= _settings.maxConcurrent)
+    throw _fail(t, "busy", "The vision model is busy. Try again in a moment.");
+  if (image.bytes.length > _settings.maxImageMb * 1024 * 1024)
+    throw _fail(t, "tooLarge", "That image is too large.");
+  const timeout = AbortSignal.timeout(_settings.timeoutSeconds * 1000);
+  let answer;
   _inFlight++;
   try {
-    const answer = await describeImage(
+    answer = await describeImage(
       {
         ..._settings,
         provider: _provider,
-        timeoutMs: _settings.timeoutSeconds * 1000,
+        mime: image.mime,
+        signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
       },
       _prompt(text),
-      image,
+      image.base64,
     );
-    const warning = answer.suspect ? _suspect(answer) : undefined;
-    if (!answer.query)
-      return _json(
-        {
-          error: "The vision model returned no query",
-          code: "noQuery",
-          warning,
-        },
-        502,
-      );
-    return _json({ query: answer.query.slice(0, 160), warning });
   } catch (err) {
+    if (signal?.aborted) throw err;
     console.warn(LOG_NS, "describe failed", err?.message ?? err);
-    return _json(
-      {
-        error: "The vision model could not describe this image",
-        code: "describeFailed",
-      },
-      502,
-    );
+    throw _fail(t, "describeFailed", "The vision model couldn't describe this image.");
   } finally {
     _inFlight--;
   }
+  if (answer.suspect) _suspect(answer);
+  if (!answer.query)
+    throw _fail(t, "noQuery", "The vision model didn't return a query.");
+  return answer.query.slice(0, 160);
 };
 
 const _findRankModels = async (modelHost) => {
@@ -532,12 +511,6 @@ const _findRankModels = async (modelHost) => {
     return [];
   }
 };
-
-const SEARCH_ICON =
-  "data:image/svg+xml;utf8," +
-  encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M20 16v2a2 2 0 0 1-2 2h-2"/><path d="M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg>',
-  );
 
 const PROVIDER_OPTIONS = [AUTO, ...Object.values(ProviderId)];
 const ID = "image-search-command";
@@ -593,12 +566,29 @@ const _providerLabels = (t) =>
       : PROVIDER_LABELS[id],
   );
 
+const DESCRIBE_ON = { key: "describe", equals: "true" };
+const RANK_ON = { key: "rank", equals: "true" };
+
 const _schema = (t) => [
-    {
+  {
     key: "transparency",
     label: "Where the image goes",
     type: "info",
-    description: "The visitor's browser sends the image to this server, which passes it straight to the vision model below. The server doesn't store it and search engines never see it, only the text query the model writes. Ranking runs in the visitor's browser. This server downloads the ranking model and runtime once from the hosts below, and browsers load them from this instance.",
+    description: "degoog sends the image from the visitor's browser to this server. With Turn images into a search query on, the server passes it straight to the vision model below and doesn't store it. Text engines only see the query the model writes. Engines that search by image get the picture itself, and each one says so in its own settings. Ranking runs in the visitor's browser. This server downloads the ranking model and runtime once from the hosts below, and browsers load them from this instance.",
+  },
+  {
+    key: "describe",
+    label: "Turn images into a search query",
+    type: "toggle",
+    default: "true",
+    description: "Your vision model writes a query for each image, and degoog runs it through your normal image engines next to the engines that search by image.",
+  },
+  {
+    key: "rank",
+    label: "Re-rank results by how they look",
+    type: "toggle",
+    default: "true",
+    description: "The visitor's browser compares every result with the image and reorders them.",
   },
   {
     key: "baseUrl",
@@ -607,6 +597,7 @@ const _schema = (t) => [
     default: DEFAULTS.baseUrl,
     placeholder: DEFAULTS.baseUrl,
     fieldset: _tr(t, "fieldsets.vision", FIELDSETS.vision),
+    visibleWhen: DESCRIBE_ON,
     description: "Ollama, llama.cpp, LM Studio, vLLM or any OpenAI-compatible server.",
   },
   {
@@ -617,6 +608,7 @@ const _schema = (t) => [
     options: PROVIDER_OPTIONS,
     optionLabels: _providerLabels(t),
     fieldset: _tr(t, "fieldsets.vision", FIELDSETS.vision),
+    visibleWhen: DESCRIBE_ON,
     optionsFrom: { dependsOn: ["baseUrl", "apiKey"], refreshLabel: _tr(t, "options.detect", "Detect") },
   },
   {
@@ -626,6 +618,7 @@ const _schema = (t) => [
     required: true,
     default: DEFAULTS.model,
     fieldset: _tr(t, "fieldsets.vision", FIELDSETS.vision),
+    visibleWhen: DESCRIBE_ON,
     description: "It has to accept images, for example qwen3.5:4b or gemma4:e4b.",
     optionsFrom: {
       dependsOn: ["baseUrl", "provider", "apiKey"],
@@ -639,6 +632,7 @@ const _schema = (t) => [
     secret: true,
     placeholder: "Leave blank for local servers",
     fieldset: _tr(t, "fieldsets.vision", FIELDSETS.vision),
+    visibleWhen: DESCRIBE_ON,
   },
   {
     key: "prompt",
@@ -647,6 +641,7 @@ const _schema = (t) => [
     default: DEFAULTS.prompt,
     advanced: true,
     fieldset: _tr(t, "fieldsets.vision", FIELDSETS.vision),
+    visibleWhen: DESCRIBE_ON,
     description: "The server sends this with every image. Keep the last sentence, it makes the model answer with a query field.",
   },
   {
@@ -656,6 +651,7 @@ const _schema = (t) => [
     default: DEFAULTS.refinePrompt,
     advanced: true,
     fieldset: _tr(t, "fieldsets.vision", FIELDSETS.vision),
+    visibleWhen: DESCRIBE_ON,
     description: "The server adds this when the visitor types words next to the image. {text} becomes those words.",
   },
   {
@@ -667,6 +663,7 @@ const _schema = (t) => [
     default: String(DEFAULTS.timeoutSeconds),
     advanced: true,
     fieldset: _tr(t, "fieldsets.vision", FIELDSETS.vision),
+    visibleWhen: DESCRIBE_ON,
   },
   {
     key: "maxImageMb",
@@ -677,17 +674,7 @@ const _schema = (t) => [
     default: String(DEFAULTS.maxImageMb),
     advanced: true,
     fieldset: _tr(t, "fieldsets.vision", FIELDSETS.vision),
-  },
-  {
-    key: "uploadMaxSide",
-    label: "Resize uploads to this many pixels",
-    type: "number",
-    min: "128",
-    max: "4096",
-    default: String(DEFAULTS.uploadMaxSide),
-    advanced: true,
-    fieldset: _tr(t, "fieldsets.vision", FIELDSETS.vision),
-    description: "The browser shrinks the longest side to this before sending. Bigger is slower but gives the model more detail.",
+    visibleWhen: DESCRIBE_ON,
   },
   {
     key: "maxConcurrent",
@@ -698,7 +685,8 @@ const _schema = (t) => [
     default: String(DEFAULTS.maxConcurrent),
     advanced: true,
     fieldset: _tr(t, "fieldsets.vision", FIELDSETS.vision),
-    description: "While this many are running, the server tells further uploads to retry.",
+    visibleWhen: DESCRIBE_ON,
+    description: "While this many are running, new image searches skip the query and say the model is busy.",
   },
   {
     key: "rankModel",
@@ -707,6 +695,7 @@ const _schema = (t) => [
     default: DEFAULTS.rankModel,
     placeholder: "owner/repo",
     fieldset: _tr(t, "fieldsets.ranking", FIELDSETS.ranking),
+    visibleWhen: RANK_ON,
     description: "A CLIP model in transformers.js ONNX format. Bigger models are more accurate, but slower to download and run. Find models lists them.",
     optionsFrom: { dependsOn: ["modelHost"], refreshLabel: _tr(t, "options.findModels", "Find models") },
   },
@@ -717,6 +706,7 @@ const _schema = (t) => [
     default: DEFAULTS.rankRevision,
     placeholder: "main",
     fieldset: _tr(t, "fieldsets.ranking", FIELDSETS.ranking),
+    visibleWhen: RANK_ON,
     description: "Branch, tag or commit. The default pins the default model. If you leave it blank or pick another model, the plugin uses the latest commit on main.",
   },
   {
@@ -727,6 +717,7 @@ const _schema = (t) => [
     options: WEAK_MODES,
     optionLabels: _labels(t, "weakMatches", WEAK_MODES),
     fieldset: _tr(t, "fieldsets.ranking", FIELDSETS.ranking),
+    visibleWhen: RANK_ON,
   },
   {
     key: "matchThreshold",
@@ -737,6 +728,7 @@ const _schema = (t) => [
     step: "1",
     default: String(DEFAULTS.matchThreshold),
     fieldset: _tr(t, "fieldsets.ranking", FIELDSETS.ranking),
+    visibleWhen: RANK_ON,
     description: "Results below this similarity count as not matching.",
   },
   {
@@ -749,7 +741,8 @@ const _schema = (t) => [
     default: String(DEFAULTS.sameThreshold),
     advanced: true,
     fieldset: _tr(t, "fieldsets.ranking", FIELDSETS.ranking),
-    description: "Results at or above this similarity get the Same image badge.",
+    visibleWhen: RANK_ON,
+    description: "How close a result's fingerprint has to be to your image to get the Same image badge. It catches resized and recompressed copies, not crops.",
   },
   {
     key: "textWeight",
@@ -761,6 +754,7 @@ const _schema = (t) => [
     default: String(DEFAULTS.textWeight),
     advanced: true,
     fieldset: _tr(t, "fieldsets.ranking", FIELDSETS.ranking),
+    visibleWhen: RANK_ON,
     description: "How much the words typed next to the image count when ordering results. 0 ignores them.",
   },
   {
@@ -772,6 +766,7 @@ const _schema = (t) => [
     optionLabels: _labels(t, "device", DEVICES),
     advanced: true,
     fieldset: _tr(t, "fieldsets.ranking", FIELDSETS.ranking),
+    visibleWhen: RANK_ON,
   },
   {
     key: "gpuDtype",
@@ -782,6 +777,7 @@ const _schema = (t) => [
     optionLabels: _labels(t, "dtype", DTYPES),
     advanced: true,
     fieldset: _tr(t, "fieldsets.ranking", FIELDSETS.ranking),
+    visibleWhen: RANK_ON,
     description: "The model needs this file, for example onnx/vision_model_fp16.onnx.",
   },
   {
@@ -793,6 +789,7 @@ const _schema = (t) => [
     optionLabels: _labels(t, "dtype", DTYPES),
     advanced: true,
     fieldset: _tr(t, "fieldsets.ranking", FIELDSETS.ranking),
+    visibleWhen: RANK_ON,
     description: "The model needs this file, for example onnx/vision_model_quantized.onnx.",
   },
   {
@@ -804,6 +801,7 @@ const _schema = (t) => [
     default: String(DEFAULTS.batchSize),
     advanced: true,
     fieldset: _tr(t, "fieldsets.ranking", FIELDSETS.ranking),
+    visibleWhen: RANK_ON,
   },
   {
     key: "fetchConcurrency",
@@ -814,6 +812,7 @@ const _schema = (t) => [
     default: String(DEFAULTS.fetchConcurrency),
     advanced: true,
     fieldset: _tr(t, "fieldsets.ranking", FIELDSETS.ranking),
+    visibleWhen: RANK_ON,
   },
   {
     key: "modelHost",
@@ -822,6 +821,7 @@ const _schema = (t) => [
     default: DEFAULTS.modelHost,
     advanced: true,
     fieldset: _tr(t, "fieldsets.ranking", FIELDSETS.ranking),
+    visibleWhen: RANK_ON,
     description: "This server downloads the ranking model from here once. Any host with the Hugging Face layout works, a mirror too.",
   },
   {
@@ -831,6 +831,7 @@ const _schema = (t) => [
     default: DEFAULTS.runtimeHost,
     advanced: true,
     fieldset: _tr(t, "fieldsets.runtime", FIELDSETS.runtime),
+    visibleWhen: RANK_ON,
     description: "An npm CDN that serves package@version/path, such as cdn.jsdelivr.net/npm or unpkg.com.",
   },
   {
@@ -840,6 +841,7 @@ const _schema = (t) => [
     default: DEFAULTS.transformersVersion,
     advanced: true,
     fieldset: _tr(t, "fieldsets.runtime", FIELDSETS.runtime),
+    visibleWhen: RANK_ON,
   },
   {
     key: "ortVersion",
@@ -849,6 +851,7 @@ const _schema = (t) => [
     placeholder: "Same as transformers.js",
     advanced: true,
     fieldset: _tr(t, "fieldsets.runtime", FIELDSETS.runtime),
+    visibleWhen: RANK_ON,
     description: "Leave blank to use the version transformers.js depends on.",
   },
   {
@@ -858,6 +861,7 @@ const _schema = (t) => [
     default: DEFAULTS.checksums,
     advanced: true,
     fieldset: _tr(t, "fieldsets.runtime", FIELDSETS.runtime),
+    visibleWhen: RANK_ON,
     description: "One file name and SHA-256 per line. The server refuses a download that doesn't match. The defaults match the default versions, so update or clear them when you change a version. The server doesn't check files missing from the list.",
   },
 
@@ -866,7 +870,7 @@ const _schema = (t) => [
 export default {
   name: "Image search",
   description:
-    "Search with a picture. Drop, paste or pick one in the search bar. Your vision model turns it into a search query, degoog runs an Images search with it, and the visitor's browser reorders the results by how close they look to the picture.",
+    "Better image search. Your vision model turns the picture into a search query for your normal image engines, and the visitor's browser reorders the results by how close they look to the picture. Each part can be turned off on its own.",
   trigger: "lens",
   aliases: ["imagesearch"],
   isClientExposed: false,
@@ -887,8 +891,9 @@ export default {
       prompt: _str(s.prompt, DEFAULTS.prompt),
       refinePrompt: _str(s.refinePrompt, DEFAULTS.refinePrompt),
       maxImageMb: _num(s.maxImageMb, DEFAULTS.maxImageMb, 1, 50),
-      uploadMaxSide: int("uploadMaxSide", 128, 4096),
       maxConcurrent: int("maxConcurrent", 1, 32),
+      describe: _bool(s.describe, DEFAULTS.describe),
+      rank: _bool(s.rank, DEFAULTS.rank),
       rankModel: REPO_RE.test(_str(s.rankModel, ""))
         ? s.rankModel.trim()
         : DEFAULTS.rankModel,
@@ -950,7 +955,7 @@ export default {
         `ranking with ${repo}@${_model.revision}, ${TRANSFORMERS_PKG}@${_settings.transformersVersion}, ${ORT_PKG}@${ort || "unknown"}`,
       );
     })();
-    void _ready.then(_warm);
+    if (_settings.rank) void _ready.then(_warm);
   },
 
   async getFieldOptions(key, values) {
@@ -1000,6 +1005,14 @@ export default {
     return { options: [] };
   },
 
+  describesImages() {
+    return _settings.describe;
+  },
+
+  imageQuery(image, context) {
+    return _imageQuery(this.t, image, context);
+  },
+
   async execute() {
     return {
       title: _tr(this.t, "command.title", "Image search"),
@@ -1007,17 +1020,7 @@ export default {
     };
   },
 
-  searchBarActions: [
-    {
-      id: "upload",
-      label: "",
-      icon: SEARCH_ICON,
-      type: "custom",
-    },
-  ],
-
   routes: [
-    { method: "post", path: "/describe", rateLimit: true, handler: _describe },
     { method: "get", path: "/config", handler: _config },
     {
       method: "get",

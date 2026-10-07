@@ -1,17 +1,10 @@
 const BASE = window.__DEGOOG_BASE_URL__ ?? "";
 const ROUTE = `${BASE}/api/plugin/${__PLUGIN_ID__}`;
-const ACTION_ID = `${__PLUGIN_ID__}-upload`;
 const _t = (key, vars) => t(`image-search-command.script.${key}`, vars);
-const ACTIVE_KEY = "image-search:active";
-const FALLBACK_MAX_SIDE = 768;
 const HF_RE =
   /^https:\/\/huggingface\.co\/([^/]+\/[^/]+)\/resolve\/([^/]+)\/(.+)$/;
 const MB = 1024 * 1024;
 const MAX_THREADS = 4;
-const TOAST_MIN_MS = 3500;
-const TOAST_MS_PER_CHAR = 60;
-const DROP_ICON =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-4.5-4.5L7 20"/></svg>';
 
 const Device = Object.freeze({
   WebGpu: "webgpu",
@@ -33,6 +26,12 @@ const Stage = Object.freeze({
 });
 
 const PCT_STAGES = new Set([Stage.Model, Stage.Download]);
+const F16_DTYPES = new Set(["fp16", "q4f16"]);
+const GPU_F16 = "shader-f16";
+const FP32 = "fp32";
+const HASH_SIDE = 32;
+const HASH_LOW = 8;
+const HASH_BITS = HASH_LOW * HASH_LOW;
 
 const WeakMode = Object.freeze({
   Bottom: "bottom",
@@ -40,7 +39,7 @@ const WeakMode = Object.freeze({
   Keep: "keep",
 });
 
-const _images = new WeakMap();
+
 const _fetched = new Set();
 const _watchers = new Set();
 let _runtimePromise = null;
@@ -72,43 +71,6 @@ const _el = (tag, cls, text) => {
   return node;
 };
 
-const _barFor = (node) => node?.closest?.(".degoog-search-bar") ?? null;
-
-const _inputFor = (bar) =>
-  bar?.querySelector("#search-input, #results-search-input") ?? null;
-
-const _pageBar = () =>
-  document.getElementById("results-search-bar") ??
-  _barFor(document.getElementById("search-input"));
-
-const _hasFiles = (dt) => !!dt && Array.from(dt.types ?? []).includes("Files");
-
-const _firstImage = (list) =>
-  Array.from(list ?? []).find((f) => f?.type?.startsWith("image/")) ?? null;
-
-const _readActive = () => {
-  try {
-    return JSON.parse(sessionStorage.getItem(ACTIVE_KEY) ?? "null");
-  } catch {
-    return null;
-  }
-};
-
-const _clearActive = () => {
-  try {
-    sessionStorage.removeItem(ACTIVE_KEY);
-  } catch {}
-};
-
-const _toast = (message) => {
-  const node = _el("div", "image-search-toast", message);
-  document.body.appendChild(node);
-  setTimeout(
-    () => node.remove(),
-    Math.max(TOAST_MIN_MS, message.length * TOAST_MS_PER_CHAR),
-  );
-};
-
 let _configPromise = null;
 
 const _config = () => {
@@ -122,275 +84,10 @@ const _config = () => {
   return _configPromise;
 };
 
-const _prepare = async (file) => {
-  const maxSide = await _config()
-    .then((cfg) => cfg.uploadMaxSide)
-    .catch(() => FALLBACK_MAX_SIDE);
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close?.();
-  return canvas.toDataURL("image/jpeg", 0.88);
-};
-
-const _dropzone = (bar) => {
-  let zone = bar.querySelector(".image-search-dropzone");
-  if (zone) return zone;
-  zone = _el("div", "image-search-dropzone");
-  const icon = _el("div", "image-search-dropzone-icon");
-  icon.innerHTML = DROP_ICON;
-  zone.append(
-    icon,
-    _el("div", "image-search-dropzone-title", _t("dropTitle")),
-    _el("div", "image-search-dropzone-hint", _t("dropHint")),
-  );
-  bar.appendChild(zone);
-  return zone;
-};
-
-const _detach = (bar) => {
-  if (!bar) return;
-  const input = _inputFor(bar);
-  bar.querySelector(".image-search-chip")?.remove();
-  bar.classList.remove("image-search-has-image", "image-search-busy");
-  _images.delete(bar);
-  if (input && input.dataset.imageSearchPlaceholder != null) {
-    input.placeholder = input.dataset.imageSearchPlaceholder;
-    delete input.dataset.imageSearchPlaceholder;
-  }
-};
-
-const _attach = (bar, dataUrl, { focus = true } = {}) => {
-  const input = _inputFor(bar);
-  if (!bar || !input) return;
-  _detach(bar);
-  const chip = _el("span", "image-search-chip");
-  const img = _el("img");
-  img.src = dataUrl;
-  img.alt = "";
-  const spinner = _el("span", "image-search-chip-spinner");
-  const remove = _el("button", "image-search-chip-remove", "×");
-  remove.type = "button";
-  remove.title = _t("remove");
-  remove.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    _detach(bar);
-    if (bar.id === "results-search-bar") _stopRanker(true);
-    input.focus();
-  });
-  chip.append(img, spinner, remove);
-  input.before(chip);
-  bar.classList.add("image-search-has-image");
-  _images.set(bar, dataUrl);
-  input.dataset.imageSearchPlaceholder = input.placeholder ?? "";
-  input.placeholder = _t("refine");
-  if (focus) input.focus();
-  if (bar.id === "results-search-bar") void _warmup({ image: dataUrl });
-};
-
-const _attachFile = async (bar, file) => {
-  if (!bar || !file) return;
-  try {
-    _attach(bar, await _prepare(file));
-  } catch (err) {
-    console.error("[image-search]", err);
-    _toast(_t("readFailed"));
-  }
-};
-
-const _pick = (bar) => {
-  const picker = _el("input");
-  picker.type = "file";
-  picker.accept = "image/*";
-  picker.addEventListener(
-    "change",
-    () => void _attachFile(bar, picker.files?.[0]),
-  );
-  picker.click();
-};
-
-let _dragTimer = 0;
-const _endDrag = () => {
-  document.body.classList.remove("image-search-dragging");
-  document
-    .querySelectorAll(".image-search-over")
-    .forEach((b) => b.classList.remove("image-search-over"));
-};
-
-document.addEventListener(
-  "dragover",
-  (e) => {
-    if (!_hasFiles(e.dataTransfer)) return;
-    e.preventDefault();
-    document.querySelectorAll(".degoog-search-bar").forEach(_dropzone);
-    document.body.classList.add("image-search-dragging");
-    const over = _barFor(e.target);
-    document
-      .querySelectorAll(".degoog-search-bar")
-      .forEach((b) => b.classList.toggle("image-search-over", b === over));
-    clearTimeout(_dragTimer);
-    _dragTimer = setTimeout(_endDrag, 180);
-  },
-  true,
-);
-
-document.addEventListener(
-  "drop",
-  (e) => {
-    if (!_hasFiles(e.dataTransfer)) return;
-    const bar = _barFor(e.target) ?? _pageBar();
-    if (!bar) return;
-    e.preventDefault();
-    e.stopPropagation();
-    _endDrag();
-    const file = _firstImage(e.dataTransfer.files);
-    if (!file) return _toast(_t("notImage"));
-    void _attachFile(bar, file);
-  },
-  true,
-);
-
-document.addEventListener(
-  "paste",
-  (e) => {
-    const bar = _barFor(e.target);
-    if (!bar) return;
-    const file = _firstImage(
-      Array.from(e.clipboardData?.items ?? [])
-        .map((i) => i.getAsFile?.())
-        .filter(Boolean),
-    );
-    if (!file) return;
-    e.preventDefault();
-    void _attachFile(bar, file);
-  },
-  true,
-);
-
-window.addEventListener("search-bar-action", (e) => {
-  if (e.detail?.actionId !== ACTION_ID) return;
-  _pick(_barFor(e.detail.input) ?? _pageBar());
-});
-
 document.addEventListener("click", (e) => {
   if (!e.target?.closest?.(".image-search-command-pick")) return;
-  _pick(_pageBar());
+  window.degoog?.pickImage?.();
 });
-
-const OWN_BANGS = new Set(["!lens", "!imagesearch"]);
-
-const _splitBangs = (raw) => {
-  const tokens = String(raw ?? "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  const isBang = (t) => /^!\S+$/.test(t);
-  const lead = [];
-  const trail = [];
-  while (tokens.length && isBang(tokens[0])) lead.push(tokens.shift());
-  while (tokens.length && isBang(tokens[tokens.length - 1]))
-    trail.unshift(tokens.pop());
-  const keep = (list) => list.filter((t) => !OWN_BANGS.has(t.toLowerCase()));
-  return { lead: keep(lead), words: tokens, trail: keep(trail) };
-};
-
-const _start = async (bar) => {
-  const image = _images.get(bar);
-  const input = _inputFor(bar);
-  if (!image || !input || bar.classList.contains("image-search-busy")) return;
-  const { lead, words, trail } = _splitBangs(input.value);
-  const text = words.join(" ");
-  bar.classList.add("image-search-busy");
-  input.dataset.imageSearchBusyText = input.placeholder;
-  input.placeholder = _t("reading");
-  try {
-    const res = await fetch(`${ROUTE}/describe`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image, text }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (body.warning) console.warn("[image-search]", body.warning.message, body.warning);
-    if (!res.ok || !body.query)
-      throw new Error(
-        body.code ? _t(`errors.${body.code}`) : body.error || `HTTP ${res.status}`,
-      );
-    const query = [...lead, body.query, ...trail].join(" ");
-    sessionStorage.setItem(
-      ACTIVE_KEY,
-      JSON.stringify({ image, text, query, generated: body.query }),
-    );
-    const api = await _resultsApi();
-    if (!api || !window.degoog?.search)
-      throw new Error(_t("unsupported"));
-    _stopRanker(false);
-    window.degoog.search(query, "images");
-    void _resume({ fresh: true });
-  } catch (err) {
-    console.error("[image-search]", err);
-    _toast(err.message || _t("failed"));
-    bar.classList.remove("image-search-busy");
-    input.placeholder = input.dataset.imageSearchBusyText ?? input.placeholder;
-  }
-};
-
-const _intercept = (e, input) => {
-  const bar = _barFor(input);
-  if (!bar || !_images.has(bar)) return;
-  if (
-    bar.id === "results-search-bar" &&
-    _ranker &&
-    input.value.trim() === _ranker.active.query
-  ) {
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    return;
-  }
-  e.preventDefault();
-  e.stopImmediatePropagation();
-  void _start(bar);
-};
-
-document.addEventListener(
-  "keydown",
-  (e) => {
-    if (e.key !== "Enter") return;
-    const el = e.target;
-    if (!(el instanceof HTMLInputElement)) return;
-    if (el.id !== "search-input" && el.id !== "results-search-input") return;
-    _intercept(e, el);
-  },
-  true,
-);
-
-document.addEventListener(
-  "click",
-  (e) => {
-    const btn = e.target?.closest?.("#results-search-btn, #btn-search");
-    if (!btn) return;
-    const input = document.getElementById(
-      btn.id === "btn-search" ? "search-input" : "results-search-input",
-    );
-    if (input) _intercept(e, input);
-  },
-  true,
-);
-
-document.addEventListener(
-  "submit",
-  (e) => {
-    const form = e.target;
-    if (!(form instanceof HTMLFormElement) || form.id !== "search-form-home")
-      return;
-    const input = document.getElementById("search-input");
-    if (input) _intercept(e, input);
-  },
-  true,
-);
 
 const _waitFor = (selector, timeout = 15000) =>
   new Promise((resolve) => {
@@ -481,13 +178,16 @@ const _gpuAdapter = (cfg) =>
     ? navigator.gpu.requestAdapter().catch(() => null)
     : null;
 
+const _gpuDtype = (gpu, dtype) =>
+  F16_DTYPES.has(dtype) && !gpu.features?.has(GPU_F16) ? FP32 : dtype;
+
 const _pickEngine = async (T, cfg) => {
   const gpu = await _gpuAdapter(cfg);
   if (!gpu && cfg.device === Device.WebGpu)
     throw new Error("WebGPU is not available in this browser");
   if (gpu) {
     try {
-      return await _loadVision(T, cfg, Device.WebGpu, cfg.gpuDtype);
+      return await _loadVision(T, cfg, Device.WebGpu, _gpuDtype(gpu, cfg.gpuDtype));
     } catch (err) {
       if (cfg.device === Device.WebGpu) throw err;
       console.warn("[image-search] WebGPU unavailable, using WebAssembly", err);
@@ -560,6 +260,63 @@ const _embedImages = async (clip, images) => {
   );
 };
 
+const _cosTable = (() => {
+  const table = new Float64Array(HASH_LOW * HASH_SIDE);
+  for (let u = 0; u < HASH_LOW; u++)
+    for (let x = 0; x < HASH_SIDE; x++)
+      table[u * HASH_SIDE + x] = Math.cos(((2 * x + 1) * u * Math.PI) / (2 * HASH_SIDE));
+  return table;
+})();
+
+const _luma = (raw) => {
+  const { data, width, height, channels } = raw;
+  const out = new Float64Array(HASH_SIDE * HASH_SIDE);
+  const count = new Float64Array(HASH_SIDE * HASH_SIDE);
+  for (let y = 0; y < height; y++) {
+    const row = Math.min(HASH_SIDE - 1, Math.floor((y * HASH_SIDE) / height));
+    for (let x = 0; x < width; x++) {
+      const col = Math.min(HASH_SIDE - 1, Math.floor((x * HASH_SIDE) / width));
+      const i = (y * width + x) * channels;
+      const v =
+        channels >= 3
+          ? 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
+          : data[i];
+      out[row * HASH_SIDE + col] += v;
+      count[row * HASH_SIDE + col]++;
+    }
+  }
+  for (let i = 0; i < out.length; i++) out[i] /= count[i] || 1;
+  return out;
+};
+
+const _phash = (raw) => {
+  const px = _luma(raw);
+  const rows = new Float64Array(HASH_SIDE * HASH_LOW);
+  for (let y = 0; y < HASH_SIDE; y++)
+    for (let v = 0; v < HASH_LOW; v++) {
+      let s = 0;
+      for (let x = 0; x < HASH_SIDE; x++)
+        s += px[y * HASH_SIDE + x] * _cosTable[v * HASH_SIDE + x];
+      rows[y * HASH_LOW + v] = s;
+    }
+  const dct = new Float64Array(HASH_BITS);
+  for (let u = 0; u < HASH_LOW; u++)
+    for (let v = 0; v < HASH_LOW; v++) {
+      let s = 0;
+      for (let y = 0; y < HASH_SIDE; y++)
+        s += rows[y * HASH_LOW + v] * _cosTable[u * HASH_SIDE + y];
+      dct[u * HASH_LOW + v] = s;
+    }
+  const median = [...dct.slice(1)].sort((a, b) => a - b)[(HASH_BITS - 1) >> 1];
+  return Uint8Array.from(dct, (c) => (c > median ? 1 : 0));
+};
+
+const _hashSimilarity = (a, b) => {
+  let same = 0;
+  for (let i = 0; i < HASH_BITS; i++) if (a[i] === b[i]) same++;
+  return same / HASH_BITS;
+};
+
 const _embedText = async (clip, text) => {
   const { tokenizer, model } = await clip.text();
   const { text_embeds } = await model(
@@ -574,11 +331,10 @@ const _prime = (image) => {
     const cfg = await _config();
     const clip = await _loadClip(cfg);
     _setStage(Stage.Source, null, { device: _label(clip.device) });
-    const [source] = await _embedImages(clip, [
-      await clip.T.RawImage.fromURL(image),
-    ]);
+    const raw = await clip.T.RawImage.fromURL(image);
+    const [source] = await _embedImages(clip, [raw]);
     _setStage(Stage.Ready);
-    return { cfg, clip, source };
+    return { cfg, clip, source, hash: _phash(raw) };
   })();
   _primed = { image, promise };
   promise.catch((err) => {
@@ -608,6 +364,8 @@ const _textVec = async ({ cfg, clip }, active) => {
 const RANKING_ID = __PLUGIN_ID__;
 const RESULTS_EVENT = "degoog-results-ready";
 const WATCH_MS = 120;
+const SETTLED_EVENT = "degoog-results-settled";
+const IMAGE_QUERY_EVENT = "degoog-image-query";
 
 const _resultsApi = (timeout = 10000) =>
   new Promise((resolve) => {
@@ -617,15 +375,13 @@ const _resultsApi = (timeout = 10000) =>
     setTimeout(done, timeout);
   });
 
-const _stopRanker = (clear) => {
+const _stopRanker = () => {
   if (!_ranker) return;
   _ranker.stopped = true;
   _ranker.unwatch?.();
   _ranker.unwatchResults?.();
   _ranker.api.setRanking(RANKING_ID, null);
   _ranker.strip?.remove();
-  _detach(document.getElementById("results-search-bar"));
-  if (clear) _clearActive();
   _ranker = null;
 };
 
@@ -653,13 +409,17 @@ const _strip = (active, onToggle) => {
   thumb.alt = "";
   const body = _el("div", "image-search-strip-body");
   const line = _el("div", "image-search-strip-line");
-  const [before, after = ""] = _t("searchedFor").split("{query}");
-  line.append(
-    before,
-    _el("code", "image-search-strip-query", active.query),
-    after,
-    active.text ? ` · ${_t("yourWords", { text: active.text })}` : "",
-  );
+  const setQuery = (query) => {
+    line.replaceChildren();
+    if (query) {
+      const [before, after = ""] = _t("searchedFor").split("{query}");
+      line.append(before, _el("code", "image-search-strip-query", query), after);
+    } else {
+      line.append(_t("searchedWithImage"));
+    }
+    if (active.text) line.append(` · ${_t("yourWords", { text: active.text })}`);
+  };
+  setQuery(active.query);
   const status = _el("div", "image-search-strip-status", _stageText(_stage));
   const progress = _bar();
   const toggle = _el("button", "image-search-strip-toggle");
@@ -668,7 +428,7 @@ const _strip = (active, onToggle) => {
   toggle.addEventListener("click", onToggle);
   body.append(line, status, progress.bar);
   strip.append(thumb, body, toggle);
-  return { strip, status, toggle, setBar: progress.set };
+  return { strip, status, toggle, setBar: progress.set, setQuery };
 };
 
 const _pool = (items, limit, fn) => {
@@ -690,10 +450,19 @@ const _pool = (items, limit, fn) => {
   return slots.map((slot) => slot.promise);
 };
 
-const _isActiveSearch = (api, active) => {
-  const { query, type } = api.current();
-  return query.trim() === active.query && type === "images";
+const _activeOf = (api) => {
+  const { query, type, search, image } = api.current();
+  if (!image || type !== "images") return null;
+  return {
+    key: `${image.id}|${query.trim()}|${search}`,
+    id: image.id,
+    image: image.dataUrl,
+    query: image.query,
+    text: query.trim(),
+  };
 };
+
+const _isActiveSearch = (api, active) => _activeOf(api)?.key === active.key;
 
 const _noResults = () => !!document.querySelector("#results-list .no-results");
 
@@ -747,12 +516,13 @@ const _rankWith = (state, cfg) => {
     ),
   ];
   const scoreOf = (r) => (r.thumbnail ? scores.get(r.thumbnail) : undefined);
-  const isWeak = (s) => s.sim < cfg.matchThreshold;
-  const isSame = (s) => s.sim >= cfg.sameThreshold;
+  const isSame = (s) => s.same >= cfg.sameThreshold;
+  const isWeak = (s) => !isSame(s) && s.sim < cfg.matchThreshold;
   const group = (r) => {
     const s = scoreOf(r);
-    if (!s) return 1;
-    return isWeak(s) ? 2 : 0;
+    if (!s) return 2;
+    if (isSame(s)) return 0;
+    return isWeak(s) ? 3 : 1;
   };
 
   api.setRanking(RANKING_ID, {
@@ -811,6 +581,19 @@ const _rankWith = (state, cfg) => {
       : _t("showHidden", { count: weak });
   };
 
+  const settle = () => {
+    if (state.busy || state.stopped) return;
+    if (api.current().settled !== false) {
+      summary();
+      return;
+    }
+    ui.status.textContent = _t("rankedSoFar", {
+      done: scores.size,
+      device: _label(state.device),
+    });
+    ui.setBar(null);
+  };
+
   const progress = () => {
     const total = thumbs().length;
     ui.status.textContent = _t("ranking", {
@@ -824,10 +607,11 @@ const _rankWith = (state, cfg) => {
   let primed;
   let textVec = null;
 
-  const score = (src, vec) => {
+  const score = (src, vec, raw) => {
     const sim = _dot(vec, primed.source);
     scores.set(src, {
       sim,
+      same: _hashSimilarity(_phash(raw), primed.hash),
       score: sim + (textVec ? cfg.textWeight * _dot(vec, textVec) : 0),
     });
   };
@@ -837,12 +621,13 @@ const _rankWith = (state, cfg) => {
       const slice = todo.slice(i, i + cfg.batchSize);
       const loaded = await Promise.all(pending.slice(i, i + cfg.batchSize));
       const ok = slice.filter((_, k) => loaded[k]);
+      const raws = loaded.filter(Boolean);
       if (ok.length) {
-        const vecs = await _embedImages(primed.clip, loaded.filter(Boolean));
-        ok.forEach((src, k) => score(src, vecs[k]));
+        const vecs = await _embedImages(primed.clip, raws);
+        ok.forEach((src, k) => score(src, vecs[k], raws[k]));
       }
       for (const src of slice.filter((_, k) => !loaded[k]))
-        scores.set(src, { sim: 0, score: -1 });
+        scores.set(src, { sim: 0, same: 0, score: -1 });
       api.refresh();
       progress();
     }
@@ -855,14 +640,15 @@ const _rankWith = (state, cfg) => {
       return;
     }
     if (!_isActiveSearch(api, active)) {
-      _stopRanker(true);
+      _stopRanker();
       return;
     }
     state.busy = true;
     try {
       const T = await _runtime();
       const todo = thumbs().filter((src) => !scores.has(src));
-      if (todo.length) state.settled = false;
+      if (!todo.length) return;
+      state.settled = false;
       const pending = _pool(todo, cfg.fetchConcurrency, (src) =>
         T.RawImage.fromURL(src),
       );
@@ -877,7 +663,6 @@ const _rankWith = (state, cfg) => {
       if (!state.stopped) {
         state.settled = true;
         api.refresh();
-        summary();
       }
     } catch (err) {
       console.error("[image-search]", err);
@@ -888,11 +673,13 @@ const _rankWith = (state, cfg) => {
       if (state.again && !state.stopped) {
         state.again = false;
         void rank();
+      } else if (state.settled) {
+        settle();
       }
     }
   };
 
-  return { rank, thumbs, summary };
+  return { rank, thumbs, summary, settle };
 };
 
 const _startRanker = async (api, active, fresh) => {
@@ -916,8 +703,6 @@ const _startRanker = async (api, active, fresh) => {
 
   const list = await _waitFor("#results-list");
   if (!list || state.stopped) return;
-  const bar = document.getElementById("results-search-bar");
-  if (bar) _attach(bar, active.image, { focus: false });
 
   let ranker = null;
   state.ui = _strip(active, () => {
@@ -929,12 +714,15 @@ const _startRanker = async (api, active, fresh) => {
   list.before(state.strip);
   state.unwatch = _watchStage((stage) => {
     if (state.ranking) return;
-    state.ui.status.textContent = _stageText(stage);
+    const waiting = stage.key === Stage.Ready && api.list().length > 0;
+    state.ui.status.textContent = waiting
+      ? _t("stages.readyResults", { count: api.list().length })
+      : _stageText(stage);
     state.ui.setBar(stage.key === Stage.Ready ? null : stage.pct);
   });
 
   if (!(await _waitForResults(api, active, fresh))) {
-    if (_ranker === state) _stopRanker(true);
+    if (_ranker === state) _stopRanker();
     return;
   }
   if (state.stopped) return;
@@ -952,26 +740,45 @@ const _startRanker = async (api, active, fresh) => {
   ranker = _rankWith(state, cfg);
   state.unwatchResults = _watchResults(() => {
     if (!_isActiveSearch(api, active)) {
-      _stopRanker(true);
+      _stopRanker();
       return;
     }
     if (ranker.thumbs().some((src) => !state.scores.has(src)))
       void ranker.rank();
   });
+  const onSettled = () => {
+    if (_isActiveSearch(api, active) && state.settled) ranker.settle();
+  };
+  window.addEventListener(SETTLED_EVENT, onSettled);
+  const unwatchResults = state.unwatchResults;
+  state.unwatchResults = () => {
+    unwatchResults();
+    window.removeEventListener(SETTLED_EVENT, onSettled);
+  };
   if (ranker.thumbs().length) void ranker.rank();
 };
 
-const _resume = async ({ fresh = false } = {}) => {
-  if (!/\/search\/?$/.test(window.location.pathname)) return;
-  const active = _readActive();
-  if (!active?.image || !active?.query) return;
-  void _warmup(active);
+const _sync = async () => {
   const api = await _resultsApi();
-  if (!api) {
-    _clearActive();
+  if (!api) return;
+  const active = _activeOf(api);
+  if (!active) {
+    _stopRanker();
     return;
   }
-  if (!_ranker) void _startRanker(api, active, fresh);
+  if (_ranker?.active.key === active.key) return;
+  const cfg = await _config().catch(() => null);
+  if (!cfg?.rank || _ranker?.active.key === active.key) return;
+  _stopRanker();
+  void _warmup(active);
+  void _startRanker(api, active, false);
 };
 
-void _resume();
+window.addEventListener(RESULTS_EVENT, () => void _sync());
+window.addEventListener(IMAGE_QUERY_EVENT, (e) => {
+  if (!_ranker) return;
+  _ranker.active.query = e.detail?.query ?? null;
+  _ranker.ui?.setQuery(_ranker.active.query);
+});
+
+void _sync();

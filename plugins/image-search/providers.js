@@ -122,7 +122,7 @@ const askOllama = async (cfg, prompt, image) => {
   const res = await fetch(`${originOf(cfg.baseUrl)}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...bearer(cfg.apiKey) },
-    signal: AbortSignal.timeout(cfg.timeoutMs),
+    signal: cfg.signal ?? AbortSignal.timeout(cfg.timeoutMs),
     body: JSON.stringify({
       model: cfg.model,
       stream: false,
@@ -145,7 +145,7 @@ const askOpenAI = async (cfg, prompt, image) => {
   const res = await fetch(`${openAIBase(cfg.baseUrl)}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...bearer(cfg.apiKey) },
-    signal: AbortSignal.timeout(cfg.timeoutMs),
+    signal: cfg.signal ?? AbortSignal.timeout(cfg.timeoutMs),
     body: JSON.stringify({
       model: cfg.model,
       stream: false,
@@ -157,7 +157,7 @@ const askOpenAI = async (cfg, prompt, image) => {
           role: "user",
           content: [
             { type: "text", text: prompt },
-            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${image}` } },
+            { type: "image_url", image_url: { url: `data:${cfg.mime ?? "image/jpeg"};base64,${image}` } },
           ],
         },
       ],
