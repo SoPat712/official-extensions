@@ -3,7 +3,7 @@ import { parseGoogleImagesJson } from "./parse-json.js";
 
 export const type = "images";
 export const description =
-  "Google Images search. Pick JSON or HTML results in engine settings, each mode recommends a transport from the Store.";
+  "Google Images search. Pick JSON or HTML results in the engine settings. Each one names the Store transport it works best with.";
 export const filters = {
   size: ["small", "medium", "large", "wallpaper"],
   color: [
@@ -217,16 +217,31 @@ export default class GoogleImagesEngine {
       options: ["json", "html"],
       optionLabels: ["JSON results", "HTML results"],
       default: "json",
+      description: "Which Google Images response the results come from.",
+    },
+    {
+      key: "jsonFormatInfo",
+      label: "JSON results",
+      type: "info",
       description:
-        "For JSON results, install [degoog-4play](https://github.com/degoog-org/official-extensions/tree/main/transports/degoog-fplay) from the Store tab. For HTML results, install [4play (lolcat)](https://github.com/degoog-org/official-extensions/tree/main/transports/lolcat-4play) from the Store tab.",
+        "For JSON results, install [4play (lolcat)](https://github.com/degoog-org/official-extensions/tree/main/transports/lolcat-4play) from the Store tab.",
+      visibleWhen: { key: "resultsFormat", equals: "json" },
+    },
+    {
+      key: "htmlFormatInfo",
+      label: "HTML results",
+      type: "info",
+      description:
+        "For HTML results, install [4play (lolcat)](https://github.com/degoog-org/official-extensions/tree/main/transports/lolcat-4play) from the Store tab.",
+      visibleWhen: { key: "resultsFormat", equals: "html" },
     },
     {
       key: "safeSearch",
-      label: "Safe Search",
+      label: "Safe search",
       type: "select",
       options: ["off", "moderate", "on"],
       default: "moderate",
-      description: "Filter explicit content from image results.",
+      description: "Hides explicit content from image results.",
     },
   ];
 

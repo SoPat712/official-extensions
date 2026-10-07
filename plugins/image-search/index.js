@@ -642,7 +642,7 @@ const _schema = (t) => [
     advanced: true,
     fieldset: _tr(t, "fieldsets.vision", FIELDSETS.vision),
     visibleWhen: DESCRIBE_ON,
-    description: "The server sends this with every image. Keep the last sentence, it makes the model answer with a query field.",
+    description: "The server sends this with every image. Keep the last sentence. It makes the model answer with a query field.",
   },
   {
     key: "refinePrompt",
@@ -707,7 +707,7 @@ const _schema = (t) => [
     placeholder: "main",
     fieldset: _tr(t, "fieldsets.ranking", FIELDSETS.ranking),
     visibleWhen: RANK_ON,
-    description: "Branch, tag or commit. The default pins the default model. If you leave it blank or pick another model, the plugin uses the latest commit on main.",
+    description: "Branch, tag or commit. The default is a pinned commit of the default model. Leave it blank or pick another model to use the latest commit on main.",
   },
   {
     key: "weakMatches",

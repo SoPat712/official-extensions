@@ -27,7 +27,7 @@
       },
       "livePreview": {
         "label": "Show words while speaking",
-        "description": "Transcribes the phrase while the visitor is still talking. This costs more work on slow devices."
+        "description": "Transcribes the phrase while the visitor is still talking. Slow devices feel the extra work."
       },
       "previewMs": {
         "label": "Milliseconds between live word updates"
@@ -52,7 +52,7 @@
       "revision": {
         "label": "Model revision",
         "placeholder": "main",
-        "description": "Branch, tag or commit. The default pins the default model. If you leave it blank or pick another model, voice search uses the latest commit on main."
+        "description": "Branch, tag or commit. The default is a pinned commit of the default model. Leave it blank or pick another model to use the latest commit on main."
       },
       "device": {
         "label": "Run on"

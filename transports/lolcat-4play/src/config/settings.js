@@ -88,14 +88,14 @@ export const settingsSchemaFor = (transportName) => [
     type: "password",
     default: "",
     description:
-      "Acts as the WebSocket path segment (e.g. password 'cnc' -> ws://host:4444/ws/lolcat-4play-transport/cnc). Must match what you set in the extension popup.",
+      "Becomes the last segment of the WebSocket path, so password 'cnc' gives ws://host:4444/ws/lolcat-4play-transport/cnc. Use the same one in the extension popup.",
   },
   {
     key: "timeout",
     label: "Page load timeout (ms)",
     type: "number",
     placeholder: String(DEFAULT_TIMEOUT_MS),
-    description: `Maximum time to wait for a page to fully load (${MIN_TIMEOUT_MS}-${MAX_TIMEOUT_MS} ms).`,
+    description: `How long to wait for a page to load, ${MIN_TIMEOUT_MS} to ${MAX_TIMEOUT_MS} ms.`,
   },
   {
     key: "useContainer",
@@ -103,21 +103,33 @@ export const settingsSchemaFor = (transportName) => [
     type: "toggle",
     default: "true",
     description:
-      "Give every search origin (google.com, bing.com, startpage.com, ...) its own dedicated, isolated Firefox container. Each origin's cookies, session and any solved CAPTCHA stay pinned to that one container and are reused for every later request to the same origin, so you only solve a challenge once. Containers are reset whenever proxy settings change. Disable only if you do not care about per-origin cookie isolation.",
+      "Gives each search origin, like google.com or bing.com, its own Firefox container. Its cookies and any solved CAPTCHA stay in that container for later requests, so you solve a challenge once. Changing proxy settings resets the containers. Turn off only if you don't need cookies kept apart per origin.",
   },
   {
     key: "maxPoolSize",
     label: "Max containers (one per origin)",
     type: "number",
     placeholder: String(DEFAULT_POOL_SIZE),
-    description: `How many origins can hold a dedicated container at once (minimum ${MIN_POOL_SIZE}). One container is reserved per search origin and reused across all its requests; when this limit is reached the least-recently-used idle origin's container is recycled to make room. Set this at or above the number of search engines you route through 4play.`,
+    description: `How many origins can have a container at once, minimum ${MIN_POOL_SIZE}. At the limit, the transport recycles the idle origin used least recently. Set it to at least the number of engines you route through 4play.`,
+    visibleWhen: {
+      anyOf: [
+        { key: "useContainer", equals: "true" },
+        { key: "proxyType", notEquals: "none" },
+      ],
+    },
   },
   {
     key: "containerTtl",
     label: "Container TTL (hours)",
     type: "number",
     placeholder: String(DEFAULT_CONTAINER_TTL_H),
-    description: "How long a container lives before being recycled (in hours). Longer is better for avoiding detection. Default is 24 hours.",
+    description: "Hours a container lives before the transport recycles it. Longer helps avoid detection. Default 24.",
+    visibleWhen: {
+      anyOf: [
+        { key: "useContainer", equals: "true" },
+        { key: "proxyType", notEquals: "none" },
+      ],
+    },
   },
   {
     key: "warmupQuery",
@@ -125,7 +137,7 @@ export const settingsSchemaFor = (transportName) => [
     type: "text",
     placeholder: DEFAULT_WARMUP_QUERY,
     description:
-      "Automatic per-origin browser warmup tries this harmless query through a discovered homepage search box before the real request. No engine-specific rules are required.",
+      "Before the real request, warmup types this harmless query into the search box on the origin's homepage. Works without engine-specific rules.",
   },
   {
     key: "warmupTtl",
@@ -133,7 +145,7 @@ export const settingsSchemaFor = (transportName) => [
     type: "number",
     placeholder: String(DEFAULT_WARMUP_TTL_M),
     description:
-      "How long a browser/container session is considered warmed for the same origin before refreshing it.",
+      "Minutes a warmed session counts as warm for its origin before the transport warms it again.",
   },
   {
     key: "blockCooldown",
@@ -141,7 +153,7 @@ export const settingsSchemaFor = (transportName) => [
     type: "number",
     placeholder: String(DEFAULT_BLOCK_COOLDOWN_M),
     description:
-      "When a CAPTCHA or bot-check page is detected, this origin/session is tainted for this long instead of returning fake zero results.",
+      "After a CAPTCHA or bot check, the transport marks that origin's session as blocked for this long rather than returning an empty result list.",
   },
   {
     key: "warmupSettle",
@@ -149,7 +161,7 @@ export const settingsSchemaFor = (transportName) => [
     type: "number",
     placeholder: String(DEFAULT_WARMUP_SETTLE_MS),
     description:
-      "Short pause after homepage/form warmup navigation so browser-set cookies and session scripts can settle before the real request.",
+      "Pause after warmup navigation so cookies and session scripts can finish before the real request.",
   },
   {
     key: "autoWarmInterval",
@@ -157,7 +169,7 @@ export const settingsSchemaFor = (transportName) => [
     type: "number",
     placeholder: "0",
     description:
-      "Keep sessions ready without waiting for a user search. Every N hours the transport re-warms the origins it has already handled (e.g. 72 = every 3 days). 0 disables it. For an origin to stay continuously warm, set this at or below the warmup TTL above; a larger value still leaves a cold gap between refreshes.",
+      "Every N hours, re-warms the origins the transport has already handled, so sessions are ready before anyone searches. 72 means every 3 days, 0 turns it off. To keep an origin warm the whole time, set this at or below the warmup TTL. A larger value leaves cold gaps.",
   },
   {
     key: "flaresolverrUrl",
@@ -165,14 +177,15 @@ export const settingsSchemaFor = (transportName) => [
     type: "text",
     placeholder: "http://127.0.0.1:8191/v1",
     description:
-      "Optional. When a CAPTCHA/bot-check is hit, try this FlareSolverr instance first to clear JavaScript challenges (e.g. Cloudflare) before falling back to opening a manual browser tab. The transport's proxy settings are forwarded to FlareSolverr. Leave blank to disable. Note: only solves automated JS challenges, not interactive image CAPTCHAs.",
+      "Optional. On a CAPTCHA or bot check, the transport asks this FlareSolverr instance to clear JavaScript challenges like Cloudflare's before it opens a tab for you. FlareSolverr gets the same proxy settings. It can't solve image CAPTCHAs. Leave blank to turn off.",
   },
   {
     key: "flaresolverrTimeout",
     label: "FlareSolverr timeout (ms)",
     type: "number",
     placeholder: String(DEFAULT_FLARE_TIMEOUT_MS),
-    description: `How long FlareSolverr may spend solving a challenge (${MIN_FLARE_TIMEOUT_MS}-${MAX_FLARE_TIMEOUT_MS} ms).`,
+    description: `How long FlareSolverr gets to solve a challenge, ${MIN_FLARE_TIMEOUT_MS} to ${MAX_FLARE_TIMEOUT_MS} ms.`,
+    visibleWhen: { key: "flaresolverrUrl", notEquals: "" },
   },
   {
     key: "proxyType",
@@ -181,7 +194,7 @@ export const settingsSchemaFor = (transportName) => [
     options: ["none", ...PROXY_TYPES],
     default: "none",
     description:
-      "Proxy protocol to attach to the container. Enabling any proxy type turns on container isolation automatically.",
+      "Proxy protocol for the containers. Any proxy turns on container isolation.",
   },
   {
     key: "proxyHost",
@@ -189,6 +202,7 @@ export const settingsSchemaFor = (transportName) => [
     type: "text",
     placeholder: "127.0.0.1",
     description: "Proxy server hostname or IP address.",
+    visibleWhen: { key: "proxyType", equals: PROXY_TYPES },
   },
   {
     key: "proxyPort",
@@ -196,24 +210,28 @@ export const settingsSchemaFor = (transportName) => [
     type: "number",
     placeholder: "1080",
     description: "Proxy server port.",
+    visibleWhen: { key: "proxyType", equals: PROXY_TYPES },
   },
   {
     key: "proxyUsername",
     label: "Proxy username",
     type: "text",
     description: "Optional proxy username.",
+    visibleWhen: { key: "proxyType", equals: PROXY_TYPES },
   },
   {
     key: "proxyPassword",
     label: "Proxy password",
     type: "password",
     description: "Optional proxy password.",
+    visibleWhen: { key: "proxyType", equals: PROXY_TYPES },
   },
   {
     key: "proxyDns",
     label: "Proxy DNS",
     type: "toggle",
     default: "true",
-    description: "Route DNS lookups through the proxy. Recommended for SOCKS to avoid DNS leaks.",
+    description: "Sends DNS lookups through the proxy. Keep it on for SOCKS so DNS doesn't leak.",
+    visibleWhen: { key: "proxyType", equals: ["socks5", "socks4"] },
   },
 ];

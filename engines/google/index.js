@@ -152,7 +152,7 @@ const _parseWml = ($, name) => {
 };
 
 export const description =
-  "Google web search. Lite results come from Google's old mobile page and work over any transport, but Google rate-limits that page per IP and busy instances start getting CAPTCHAs. The [4play (lolcat)](https://github.com/degoog-org/official-extensions/tree/main/transports/lolcat-4play) transport is still the recommended way to run this engine. It fetches through a real Firefox session, and HTML results only work with it. Install 4play from the Store tab and select it as this engine's transport. If you can't run 4play, use lite results or the Google CSE engine.";
+  "Google web search. Lite results come from Google's old mobile page and work over any transport, but Google rate-limits that page per IP and busy instances start hitting CAPTCHAs. The [4play (lolcat)](https://github.com/degoog-org/official-extensions/tree/main/transports/lolcat-4play) transport is still the recommended way to run this engine. It fetches through a real Firefox session, and HTML results only work with it. Install 4play from the Store tab and select it as this engine's transport. If you can't run 4play, use lite results or the Google CSE engine.";
 
 export default class GoogleEngine {
   isClientExposed = false;
@@ -176,15 +176,30 @@ export default class GoogleEngine {
       options: ["lite", "html"],
       optionLabels: ["Lite results", "HTML results"],
       default: "lite",
+      description: "Which Google page the results come from.",
+    },
+    {
+      key: "liteFormatInfo",
+      label: "Lite results",
+      type: "info",
       description:
-        "Lite results come from Google's old mobile page and work without 4play, though Google rate-limits them per IP. HTML results fetch the full desktop page for better titles and snippets, and they need the [4play (lolcat)](https://github.com/degoog-org/official-extensions/tree/main/transports/lolcat-4play) transport selected above. Use 4play for either mode if you can.",
+        "Lite results come from Google's old mobile page and work over any transport, but Google rate-limits them per IP. Use the [4play (lolcat)](https://github.com/degoog-org/official-extensions/tree/main/transports/lolcat-4play) transport if you can.",
+      visibleWhen: { key: "resultsFormat", equals: "lite" },
+    },
+    {
+      key: "htmlFormatInfo",
+      label: "HTML results",
+      type: "info",
+      description:
+        "HTML results fetch the full desktop page for better titles and snippets. They need the [4play (lolcat)](https://github.com/degoog-org/official-extensions/tree/main/transports/lolcat-4play) transport selected above.",
+      visibleWhen: { key: "resultsFormat", equals: "html" },
     },
     {
       key: "safeSearch",
-      label: "Safe Search",
+      label: "Safe search",
       type: "select",
       options: ["off", "on"],
-      description: "Filter explicit content from search results.",
+      description: "Hides explicit content from search results.",
     },
   ];
 

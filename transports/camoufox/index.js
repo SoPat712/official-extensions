@@ -70,21 +70,22 @@ export default class CamoufoxTransport {
       type: "toggle",
       default: "false",
       description:
-        "Visit the target origin first before scraping. Helps with sites that flag cold sessions.",
+        "Visits the target origin before scraping. Helps on sites that flag cold sessions.",
     },
     {
       key: "warmupDwellMs",
       label: "Warmup dwell (ms)",
       type: "number",
       placeholder: "1500",
-      description: "How long to dwell on the warmup page before continuing.",
+      description: "How long to stay on the warmup page before moving on.",
+      visibleWhen: { key: "warmupEnabled", equals: "true" },
     },
     {
       key: "timeout",
       label: "Timeout (ms)",
       type: "number",
       placeholder: "15000",
-      description: "Maximum time to wait for the page to load (3000–60000 ms).",
+      description: "How long to wait for the page to load, 3000 to 60000 ms.",
     },
     {
       key: "waitUntil",
@@ -92,7 +93,7 @@ export default class CamoufoxTransport {
       type: "select",
       options: ["load", "domcontentloaded", "networkidle"],
       default: "networkidle",
-      description: "When to consider the page fully loaded.",
+      description: "Which page event counts as loaded.",
     },
     {
       key: "bypassProxy",
@@ -100,7 +101,7 @@ export default class CamoufoxTransport {
       type: "toggle",
       default: "true",
       description:
-        "Connect directly to the Camoufox service instead of routing through the degoog proxy.",
+        "Connects straight to the Camoufox service instead of going through the degoog proxy.",
     },
   ];
 

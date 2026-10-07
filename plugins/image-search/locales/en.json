@@ -33,7 +33,7 @@
       },
       "prompt": {
         "label": "Prompt",
-        "description": "The server sends this with every image. Keep the last sentence, it makes the model answer with a query field."
+        "description": "The server sends this with every image. Keep the last sentence. It makes the model answer with a query field."
       },
       "refinePrompt": {
         "label": "Prompt when the visitor adds words",
@@ -57,7 +57,7 @@
       "rankRevision": {
         "label": "Ranking model revision",
         "placeholder": "main",
-        "description": "Branch, tag or commit. The default pins the default model. If you leave it blank or pick another model, the plugin uses the latest commit on main."
+        "description": "Branch, tag or commit. The default is a pinned commit of the default model. Leave it blank or pick another model to use the latest commit on main."
       },
       "weakMatches": {
         "label": "Results that don't look like the image"

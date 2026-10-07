@@ -13,11 +13,14 @@
 
   let history = [];
   let sources = [];
+  let newTab = false;
 
   const escapeHtml = (s) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
   const getQuery = () => new URLSearchParams(window.location.search).get("q") || "";
+
+  const browserLanguage = () => (navigator.language || "").split("-")[0].toLowerCase();
 
   const collectResults = () => {
     const items = document.querySelectorAll("#results-list .result-item");
@@ -110,6 +113,19 @@
     const md = window.__degoogMd;
     if (md) return md.block(enriched);
     return escapeHtml(enriched).replace(/\n/g, "<br>");
+  };
+
+  const retargetLinks = (root) => {
+    if (!newTab) return;
+    root.querySelectorAll("a[href]").forEach((a) => {
+      a.setAttribute("target", "_blank");
+      a.setAttribute("rel", "noopener noreferrer");
+    });
+  };
+
+  const paintRich = (el, text) => {
+    el.innerHTML = renderRich(text);
+    retargetLinks(el);
   };
 
   const autoResize = (el) => {
@@ -224,7 +240,7 @@
           onFirstText();
         }
         textBuf += chunk;
-        target.innerHTML = renderRich(textBuf);
+        paintRich(target, textBuf);
       },
       onThinking: (text) => {
         if (started || !text) return;
@@ -308,7 +324,7 @@
 
     await runStream({
       url: SUMMARY_URL,
-      payload: { query, results },
+      payload: { query, results, language: browserLanguage() },
       target,
       onFirstText: () => {
         target.dataset.state = "streaming";
@@ -317,7 +333,7 @@
       onComplete: (text) => {
         streamDone = true;
         target.dataset.state = "done";
-        target.innerHTML = renderRich(text);
+        paintRich(target, text);
         initFollowUp(box, text);
         requestAnimationFrame(() => {
           needsClamp = !!(bodyEl && bodyEl.scrollHeight > MAX_SUMMARY_HEIGHT);
@@ -387,7 +403,7 @@
 
     await runStream({
       url: CHAT_URL,
-      payload: { messages: history },
+      payload: { messages: history, language: browserLanguage() },
       target: reply,
       thinkAnchor: reply,
       thinkPos: "before",
@@ -398,7 +414,7 @@
       onComplete: (out) => {
         history.push({ role: "assistant", content: out });
         reply.dataset.state = "done";
-        reply.innerHTML = renderRich(out);
+        paintRich(reply, out);
       },
       onFail: (msg) => {
         reply.dataset.state = "error";
@@ -429,7 +445,7 @@
 
   const srcRow = (src) => {
     return (
-      `<a class="glance-ai-pop-row" href="${escapeHtml(src.u)}" target="_blank" rel="noopener">` +
+      `<a class="glance-ai-pop-row" href="${escapeHtml(src.u)}" target="_blank" rel="${newTab ? "noopener noreferrer" : "noopener"}">` +
       '<span class="glance-ai-pop-head">' +
       faviconHtml(src) +
       `<span class="glance-ai-pop-host">${escapeHtml(hostLabel(src))}</span>` +
@@ -527,6 +543,8 @@
     if (box.dataset.chatInit) return;
     box.dataset.chatInit = "1";
     sources = parseSrcs(box);
+    newTab = box.dataset.newTab === "1";
+    retargetLinks(box);
     hydrateIcons(box);
     initRail(box);
     if (box.dataset.stream === "1") streamSummary(box);

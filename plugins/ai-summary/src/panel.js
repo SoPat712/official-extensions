@@ -53,8 +53,8 @@ const stackHtml = (sources) =>
     .map((s) => iconHtml(s.favicon, "glance-ai-stack-icon", 18))
     .join("");
 
-const railCard = (s) =>
-  `<a class="glance-ai-rail-card" href="${escapeHtml(s.url)}" target="_blank" rel="noopener">` +
+const railCard = (s, newTab) =>
+  `<a class="glance-ai-rail-card" href="${escapeHtml(s.url)}" target="_blank" rel="${newTab ? "noopener noreferrer" : "noopener"}">` +
   '<span class="glance-ai-rail-head">' +
   iconHtml(s.favicon, "glance-ai-rail-icon", 14) +
   `<span class="glance-ai-rail-host">${escapeHtml(s.host || s.url)}</span>` +
@@ -71,7 +71,7 @@ const titleHtml = (t) =>
   `<span>${escapeHtml(t("ai-summary-slot.badge"))}</span>` +
   "</div>";
 
-export const sourcesHtml = (t, sources) => {
+export const sourcesHtml = (t, sources, newTab = false) => {
   const title = titleHtml(t);
   if (!sources.length) return `<div class="glance-ai-head">${title}</div>`;
   return (
@@ -83,12 +83,12 @@ export const sourcesHtml = (t, sources) => {
     "</button>" +
     "</div>" +
     '<div class="glance-ai-rail" hidden>' +
-    sources.map(railCard).join("") +
+    sources.map((s) => railCard(s, newTab)).join("") +
     "</div>"
   );
 };
 
-export const buildPanelHtml = (t, query, sources, hideOnError, enableInputStyling) => {
+export const buildPanelHtml = (t, query, sources, hideOnError, enableInputStyling, openLinksInNewTab) => {
   const sourcesJson = JSON.stringify(
     sources.map((s) => ({ i: s.index, u: s.url, t: s.title, h: s.host, s: s.snippet, f: s.favicon })),
   );
@@ -99,8 +99,9 @@ export const buildPanelHtml = (t, query, sources, hideOnError, enableInputStylin
     '<div class="glance-ai degoog-panel degoog-panel--slot degoog-panel--slot-body-padded degoog-vstack"' +
     ` data-stream="1" data-query="${escapeHtml(query)}"` +
     ` data-hide-on-error="${hideOnError ? "1" : "0"}"` +
+    ` data-new-tab="${openLinksInNewTab ? "1" : "0"}"` +
     ` data-sources="${escapeHtml(sourcesJson)}">` +
-    sourcesHtml(t, sources) +
+    sourcesHtml(t, sources, openLinksInNewTab) +
     '<div class="glance-ai-summary-wrap">' +
     '<div class="glance-ai-body glance-ai-body--clamped">' +
     '<div class="glance-snippet glance-ai-stream degoog-text degoog-text--md" data-state="pending">' +

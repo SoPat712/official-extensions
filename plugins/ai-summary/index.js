@@ -1,5 +1,6 @@
 import {
   adapterRequirements,
+  ChatRole,
   DetectSource,
   effectiveProviderId,
   forgetDetection,
@@ -12,6 +13,7 @@ import { DEFAULT_SYSTEM_PROMPT } from "./src/prompt.js";
 import { parseSettings, settingsSchema, FOLLOWUP_MIN_TOKENS } from "./src/settings.js";
 import { buildSources, buildUserPrompt, buildPanelHtml, summaryCacheKey } from "./src/panel.js";
 import { runStream } from "./src/pipeline.js";
+import { cleanChatMessages } from "./src/messages.js";
 
 const AI_SUMMARY_ID = "ai-summary-slot";
 const MODEL_FIELD_KEY = "model";
@@ -83,6 +85,13 @@ const fetchModels = async (settings) => {
   };
 };
 
+const LANGUAGE_RE = /^[a-z]{2}$/;
+
+const pickLanguage = (raw) => {
+  const code = String(raw ?? "").trim().toLowerCase();
+  return LANGUAGE_RE.test(code) ? code : "";
+};
+
 const jsonError = (msg, status) =>
   new Response(JSON.stringify({ error: msg }), {
     status,
@@ -131,7 +140,16 @@ export const slot = {
     if (!_settings.model) return { html: "" };
     if (_settings.questionMarkOnly && !query.trim().endsWith("?")) return { html: "" };
     const sources = buildSources(results, context?.signFaviconUrl);
-    return { html: buildPanelHtml(this.t, query.trim(), sources, _settings.hideOnError, _settings.enableInputStyling) };
+    return {
+      html: buildPanelHtml(
+        this.t,
+        query.trim(),
+        sources,
+        _settings.hideOnError,
+        _settings.enableInputStyling,
+        _settings.openLinksInNewTab,
+      ),
+    };
   },
 
   settingsSchema,
@@ -153,13 +171,15 @@ export const routes = [
       if (!query || results.length === 0) return jsonError("Missing query or results", 400);
       if (!_settings.model) return jsonError("AI summary not configured", 400);
       if (_settings.questionMarkOnly && !query.endsWith("?")) return jsonError("Question-only mode", 403);
+      const language = pickLanguage(body.language);
       return runStream(
         buildSummaryMsgs(query, results),
         _settings.maxTokens,
-        summaryCacheKey(query, results),
+        `${summaryCacheKey(query, results)}${language ? `|${language}` : ""}`,
         _settings,
         _summaryCache,
         query,
+        language,
       );
     },
   },
@@ -173,17 +193,19 @@ export const routes = [
       } catch {
         return jsonError("Invalid JSON", 400);
       }
-      if (!Array.isArray(body.messages) || body.messages.length === 0) {
+      const messages = Array.isArray(body.messages) ? cleanChatMessages(body.messages) : [];
+      if (!messages.some((m) => m.role === ChatRole.User)) {
         return jsonError("Missing messages", 400);
       }
       if (!_settings.model) return jsonError("AI summary not configured", 400);
       return runStream(
-        body.messages,
+        messages,
         Math.max(_settings.maxTokens, FOLLOWUP_MIN_TOKENS),
         null,
         _settings,
         _summaryCache,
-        String(body.messages[0]?.content ?? ""),
+        String(messages[0]?.content ?? ""),
+        pickLanguage(body.language),
       );
     },
   },

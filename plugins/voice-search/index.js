@@ -505,7 +505,7 @@ const _schema = (t) => [
     type: "toggle",
     default: "true",
     fieldset: _tr(t, "fieldsets.listening", FIELDSETS.listening),
-    description: "Transcribes the phrase while the visitor is still talking. This costs more work on slow devices.",
+    description: "Transcribes the phrase while the visitor is still talking. Slow devices feel the extra work.",
   },
   {
     key: "previewMs",
@@ -516,6 +516,7 @@ const _schema = (t) => [
     default: String(DEFAULTS.previewMs),
     advanced: true,
     fieldset: _tr(t, "fieldsets.listening", FIELDSETS.listening),
+    visibleWhen: { key: "livePreview", equals: "true" },
   },
   {
     key: "pauseMs",
@@ -571,7 +572,7 @@ const _schema = (t) => [
     default: DEFAULTS.revision,
     placeholder: "main",
     fieldset: _tr(t, "fieldsets.model", FIELDSETS.model),
-    description: "Branch, tag or commit. The default pins the default model. If you leave it blank or pick another model, voice search uses the latest commit on main.",
+    description: "Branch, tag or commit. The default is a pinned commit of the default model. Leave it blank or pick another model to use the latest commit on main.",
   },
   {
     key: "device",
@@ -593,6 +594,7 @@ const _schema = (t) => [
     advanced: true,
     fieldset: _tr(t, "fieldsets.model", FIELDSETS.model),
     description: "The model needs this file, for example onnx/encoder_model.onnx for fp32. On WebGPU, Whisper's encoder loses accuracy below fp32.",
+    visibleWhen: { key: "device", equals: [AUTO, "webgpu"] },
   },
   {
     key: "gpuDecoderDtype",
@@ -604,6 +606,7 @@ const _schema = (t) => [
     advanced: true,
     fieldset: _tr(t, "fieldsets.model", FIELDSETS.model),
     description: "For example onnx/decoder_model_merged_q4.onnx for q4.",
+    visibleWhen: { key: "device", equals: [AUTO, "webgpu"] },
   },
   {
     key: "wasmEncoderDtype",
@@ -615,6 +618,7 @@ const _schema = (t) => [
     advanced: true,
     fieldset: _tr(t, "fieldsets.model", FIELDSETS.model),
     description: "For example onnx/encoder_model_quantized.onnx for q8.",
+    visibleWhen: { key: "device", equals: [AUTO, "wasm"] },
   },
   {
     key: "wasmDecoderDtype",
@@ -626,6 +630,7 @@ const _schema = (t) => [
     advanced: true,
     fieldset: _tr(t, "fieldsets.model", FIELDSETS.model),
     description: "For example onnx/decoder_model_merged_quantized.onnx for q8.",
+    visibleWhen: { key: "device", equals: [AUTO, "wasm"] },
   },
   {
     key: "modelHost",

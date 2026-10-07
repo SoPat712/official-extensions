@@ -8,6 +8,10 @@
   background: var(--bg-light);
   font-size: 13px;
   color: var(--text-secondary);
+  position: sticky;
+  top: 8px;
+  z-index: 5;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
 }
 
 .image-search-strip-thumb {

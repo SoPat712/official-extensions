@@ -236,7 +236,8 @@ const transportField = () => {
       label: "4play transport",
       type: "info",
       description:
-        "The transport list is not loaded yet. Reopen this dialog in a few seconds, or run !4play once, and this becomes a dropdown of your installed transports.",
+        "The transport list hasn't loaded yet. Reopen this dialog in a few seconds, or run !4play once, and this turns into a dropdown of your installed transports.",
+      visibleWhen: { key: "accessMode", equals: ["admin", "open"] },
     };
   }
   return transportSelect();
@@ -261,7 +262,8 @@ const transportSelect = () => {
     optionLabels: ordered.map((item) => `${item.label} (${item.id})`),
     default: defaultTransport(),
     description:
-      "Which installed transport this card reports on. It defaults to the first installed transport whose name mentions 4play. Change it if you run a renamed or third-party 4play transport.",
+      "The transport this card reports on. Defaults to the first one whose name mentions 4play. Change it if yours is renamed or third-party.",
+    visibleWhen: { key: "accessMode", equals: ["admin", "open"] },
   };
 };
 
@@ -420,7 +422,7 @@ export default {
   isClientExposed: false,
   name: "4play status",
   description:
-    "Shows the live status of the 4play transport (connection, warmed origins, blocked sessions, open captchas). Admin only.",
+    "Live status of the 4play transport, with its connection, warmed origins, blocked sessions and open captchas. Admin only.",
   trigger: TRIGGER,
   aliases: ["fourplay"],
 
@@ -433,7 +435,7 @@ export default {
         options: ["admin", "open", "locked"],
         default: "admin",
         description:
-          "admin requires a valid settings/admin session, open lets anyone who can run the bang view and clear 4play status, and locked disables the status API for everyone.",
+          "admin needs a valid settings session. open lets anyone who can run the bang view and clear 4play status. locked turns the status API off for everyone.",
       },
       transportField(),
       {
@@ -442,7 +444,8 @@ export default {
         type: "text",
         default: "",
         description:
-          "Link to the Firefox instance running the 4play extension (e.g. a remote-desktop/VNC/noVNC URL like http://192.168.86.233:6080, or any URL that opens that browser). When set, the status card shows an 'Open Firefox' button and a jump link next to every captcha that needs attention, so you can hop straight over to solve it. Firefox cannot be deep-linked to a specific tab from outside, so this opens the browser and you pick the flagged tab.",
+          "A URL that opens the Firefox running the 4play extension, such as a noVNC address like http://192.168.86.233:6080. The card then shows an 'Open Firefox' button and a link next to each captcha that needs you. It can't open a specific tab, so you pick the flagged one yourself.",
+        visibleWhen: { key: "accessMode", equals: ["admin", "open"] },
       },
     ];
   },

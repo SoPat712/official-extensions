@@ -242,6 +242,7 @@ const _schema = () => [
     advanced: true,
     description:
       "The header the legacy method sends. Only change it if your server expects a different one.",
+    visibleWhen: { key: "authMethod", equals: ["auto", "legacy"] },
   },
   {
     key: "thumbHeight",

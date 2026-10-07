@@ -169,15 +169,30 @@ export default class GoogleVideosEngine {
       options: ["lite", "html"],
       optionLabels: ["Lite results", "HTML results"],
       default: "lite",
+      description: "Which Google page the results come from.",
+    },
+    {
+      key: "liteFormatInfo",
+      label: "Lite results",
+      type: "info",
       description:
-        "Lite results use a lightweight mobile page that works over any transport. HTML results fetch the full desktop results page for higher-quality results with proper titles, snippets and thumbnails, but require a real browser session; install [4play (lolcat)](https://github.com/degoog-org/official-extensions/tree/main/transports/lolcat-4play) from the Store tab and select it as this engine's transport.",
+        "Lite results come from a lightweight mobile page and work over any transport.",
+      visibleWhen: { key: "resultsFormat", equals: "lite" },
+    },
+    {
+      key: "htmlFormatInfo",
+      label: "HTML results",
+      type: "info",
+      description:
+        "HTML results fetch the full desktop page for better titles, snippets and thumbnails. They need a real browser session, so install [4play (lolcat)](https://github.com/degoog-org/official-extensions/tree/main/transports/lolcat-4play) from the Store tab and select it as this engine's transport.",
+      visibleWhen: { key: "resultsFormat", equals: "html" },
     },
     {
       key: "safeSearch",
-      label: "Safe Search",
+      label: "Safe search",
       type: "select",
       options: ["off", "on"],
-      description: "Filter explicit content from video results.",
+      description: "Hides explicit content from video results.",
     },
   ];
 

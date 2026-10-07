@@ -9,7 +9,7 @@ Makes degoog's image search better. degoog itself takes the image: drop, paste o
 
 degoog sends the image from the browser to this server with the search. The server hands it to your vision model, which writes a search query. The server keeps no copy of the image. Text engines only ever see that query, so your POST search, language, image filters, cache and indexer settings all apply as usual. The browser remembers the query, so later pages, retries and reloads don't ask the model again.
 
-Once results arrive, the visitor's browser compares each one with the image. Results that don't look like it move to the end. You can hide them instead, or leave degoog's order alone. Copies of the picture, resized or recompressed, get a "Same image" badge from a perceptual fingerprint of each thumbnail. Crops of it don't, CLIP still ranks those near the top, and results that load as you scroll get ranked too.
+Once results arrive, the visitor's browser compares each one with the image. Results that don't look like it move to the end. You can hide them instead, or leave degoog's order alone. Copies of the picture, resized or recompressed, get a "Same image" badge from a perceptual fingerprint of each thumbnail. Crops don't get the badge, but CLIP still ranks them near the top. Results that load as you scroll get ranked too.
 
 degoog only shows the image button when an enabled engine can use the image, so with the query turned off you need at least one engine that searches by image.
 
