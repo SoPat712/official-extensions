@@ -174,7 +174,37 @@
     }
     container.insertBefore(cardEl, sentinel);
   }
+  
+  function enableHorizontalWheelScroll(container) {
+    if (!container || container.__freshrssWheelBound) return;
+    container.__freshrssWheelBound = true;
 
+    container.addEventListener(
+      "wheel",
+      function (e) {
+        if (!container.classList.contains("home-news-feed--desktop")) return;
+
+        var canScrollHorizontally = container.scrollWidth > container.clientWidth;
+        if (!canScrollHorizontally) return;
+
+        if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+
+        var maxScrollLeft = container.scrollWidth - container.clientWidth;
+        var nextScrollLeft = container.scrollLeft + e.deltaY;
+        var willMove =
+          (e.deltaY < 0 && container.scrollLeft > 0) ||
+          (e.deltaY > 0 && container.scrollLeft < maxScrollLeft) ||
+          (nextScrollLeft > 0 && nextScrollLeft < maxScrollLeft);
+
+        if (!willMove) return;
+
+        e.preventDefault();
+        container.scrollLeft += e.deltaY;
+      },
+      { passive: false }
+    );
+  }  
+  
   function initStream(container, desktop, sentinel) {
     var gotItems = false;
     var skeletonRemoved = false;
@@ -261,7 +291,8 @@
 
     var sentinel = document.createElement("div");
     sentinel.className = "home-feed-sentinel";
-
+    
+    enableHorizontalWheelScroll(container);
     initStream(container, desktop, sentinel);
   }
 
