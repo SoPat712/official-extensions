@@ -1,33 +1,33 @@
 # 4play status
 
-Type `!4play` (or `!fourplay`) to see a live status card for the lolcat 4play transport: connection state, warmed sessions with expiry countdowns, blocked origins with cooldowns, container pool usage, open captcha tabs, and the background warmup schedule.
+Type `!4play` or `!fourplay` to see a live status card for the lolcat 4play transport. It shows the connection state, warmed sessions with time left until they expire, blocked origins with their cooldowns, how many containers are in use, open captcha tabs and the background warmup schedule.
 
-By default the card is admin gated. Anyone can run the bang, but the status and clear controls only unlock for users logged into the settings/admin panel. You can change this in the plugin settings: keep `admin`, set `open` for a trusted local instance, or set `locked` to disable the status API entirely on a public instance.
+By default only admins see the card. Anyone can run the bang, but the status and clear controls only unlock for users logged into the settings panel. The plugin settings let you change that. Keep `admin`, use `open` on a trusted local instance, or use `locked` to turn the status API off on a public one.
 
 ## Controls
 
-- Refresh: re-reads the latest status snapshot.
-- Test 4play: fetches `https://example.com` through the selected transport and reports the result on the card. Also useful to bootstrap a transport that has not served a fetch yet.
-- Clear all sessions: wipes every warmed session and cookie jar and retires pooled containers.
-- Per-session clear: the x on a row wipes just that origin/container session.
+- **Refresh** reads the latest status again.
+- **Test 4play** fetches `https://example.com` through the selected transport and shows the result on the card. It also wakes up a transport that hasn't served a fetch yet.
+- **Clear all sessions** deletes every warmed session and cookie jar and retires the pooled containers.
+- The **x** on a row clears just that origin's session.
 
-Clears are queued through a control channel and picked up by the transport within a few seconds; the card refreshes itself after the request settles.
+Clears go through a control channel, and the transport picks them up within a few seconds. The card refreshes once the request finishes.
 
 ## Transport detection
 
-The "4play transport" setting is a dropdown of every transport currently installed, so you never type a name. The list comes from `/api/extensions?type=transports` whenever the card loads, and is cached so it survives restarts; before the card has ever run it falls back to scanning the transports folder next to this plugin.
+The "4play transport" setting is a dropdown of the installed transports, so you never type a name. The card reads the list from `/api/extensions?type=transports` each time it loads and caches it across restarts. Before the card has run for the first time, the plugin scans the transports folder next to it instead.
 
-It pre-selects the first installed transport whose name mentions 4play, which is the right one on a normal install including forks. Pick a different entry if you run a third-party 4play transport or renamed yours to something that does not mention 4play.
+It picks the first installed transport whose name mentions 4play, which is right on a normal install and on forks. Choose another one if you run a third-party 4play transport or renamed yours to something without 4play in it.
 
-The app only hands a transport its cache handle on the transport's first fetch, so a freshly (re)started app shows "asleep" until a search runs through the transport. Use "Test 4play" to bootstrap it.
+The app only gives a transport its cache handle on the transport's first fetch. After a restart the card shows "asleep" until a search goes through the transport. Press "Test 4play" to wake it.
 
 ## Requirements
 
-- The lolcat 4play transport installed and connected.
-- For always-ready sessions, set the transport's "Background warmup interval" setting.
+- The lolcat 4play transport, installed and connected.
+- For sessions that are always ready, set the transport's "Background warmup interval".
 
 ## Settings
 
-- Status view access: `admin` requires a valid settings/admin session, `open` skips session checks and lets anyone who can run the bang view and clear 4play status, and `locked` disables the status API for everyone.
-- 4play transport: dropdown of the installed transports, pre-selecting the first one whose name mentions 4play.
-- Firefox browser link: URL that opens the Firefox instance running the 4play extension. When set, the card shows an "Open Firefox" button and a jump link on every captcha that needs attention.
+- **Status view access.** `admin` needs a valid settings session. `open` skips the session check, so anyone who can run the bang can view and clear 4play status. `locked` turns the status API off for everyone.
+- **4play transport.** A dropdown of installed transports, set to the first one whose name mentions 4play.
+- **Firefox browser link.** A URL that opens the Firefox running the 4play extension. With it set, the card shows an "Open Firefox" button and a link on every captcha that needs you.

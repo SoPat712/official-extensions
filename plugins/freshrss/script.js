@@ -175,6 +175,19 @@
     container.insertBefore(cardEl, sentinel);
   }
 
+  function enableHorizontalWheelScroll(container) {
+    container.addEventListener(
+      "wheel",
+      function (e) {
+        if (e.ctrlKey || e.deltaX || !container.classList.contains("home-news-feed--desktop")) return;
+        var before = container.scrollLeft;
+        container.scrollLeft += e.deltaY;
+        if (container.scrollLeft !== before) e.preventDefault();
+      },
+      { passive: false },
+    );
+  }
+
   function initStream(container, desktop, sentinel) {
     var gotItems = false;
     var skeletonRemoved = false;
@@ -262,6 +275,7 @@
     var sentinel = document.createElement("div");
     sentinel.className = "home-feed-sentinel";
 
+    enableHorizontalWheelScroll(container);
     initStream(container, desktop, sentinel);
   }
 
