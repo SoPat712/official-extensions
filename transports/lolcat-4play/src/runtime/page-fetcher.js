@@ -154,7 +154,7 @@ export class PageFetcher {
         },
         proxyUrl: this._curlProxyUrl(),
       });
-      const text = await response.text();
+      const text = await response.clone().text();
 
       if (origin && (looksConsent(text, url) || looksBlocked(text, url))) {
         this._describe(text, response.status, origin);
@@ -167,7 +167,7 @@ export class PageFetcher {
         );
         return null;
       }
-      return wrapResponse(text);
+      return response;
     } catch (error) {
       this._warn(
         `warmed curl fetch failed for ${origin}: ${error?.message || error}; falling back to browser tab`,
